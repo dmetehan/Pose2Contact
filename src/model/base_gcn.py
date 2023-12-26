@@ -59,6 +59,7 @@ class SpatialGraphConv(nn.Module):
         x = x.view(n, self.s_kernel_size, kc//self.s_kernel_size, t, v)
 
         # spatial graph convolution
+        # TODO: MAKE the adjacency matrix 3D
         x = torch.einsum('nkctv,kvw->nctw', (x, A[:self.s_kernel_size])).contiguous()
 
         return x
@@ -91,19 +92,15 @@ class ResGCNModule(nn.Module):
             self.residual = lambda x: x
         else:
             self.residual = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, 1, (stride, 1)),
+                nn.Conv2d(in_channels, out_channels, (1, 1), (stride, 1)),
                 nn.BatchNorm2d(out_channels),
             )
 
-        spatial_block = U.import_class('src.model.TPGCN.blocks.Spatial_{}_Block'.format(spatial_block))
-        temporal_block = U.import_class('src.model.TPGCN.blocks.Temporal_{}_Block'.format(temporal_block))
-        if initial and 'adaptive' in kwargs:
-            kwargs['adaptive'] == False
-        self.scn = spatial_block(in_channels, out_channels, max_graph_distance, A, block_res, **kwargs)
-        self.tcn = temporal_block(out_channels, temporal_window_size, stride, block_res, **kwargs)
+        self.scn = SpatialBasicBlock(in_channels, out_channels, max_graph_distance, A, block_res, **kwargs)
+        # self.tcn = temporal_block(out_channels, temporal_window_size, stride, block_res, **kwargs)
 
     def forward(self, x):
-        return self.tcn(self.scn(x), self.residual(x))
+        return self.scn(x)
 
 
 class ResGCNInputBranch(nn.Module):
@@ -120,8 +117,10 @@ class ResGCNInputBranch(nn.Module):
 
     def forward(self, x):
 
-        N, C, T, V, M = x.size()
-        x = self.bn(x.permute(0,4,1,2,3).contiguous().view(N*M, C, T, V))
+        # N, C, T, V, M = x.size()
+        N, M, V, C = x.size()
+        # x = self.bn(x.permute(0,4,1,2,3).contiguous().view(N*M, C, T, V))
+        x = self.bn(x.permute(0, 1, 3, 2).contiguous().view(N * M, C, V, 1))
         for layer in self.layers:
             x = layer(x)
 
@@ -156,27 +155,36 @@ class TPGCN(nn.Module):
         zero_init_lastBN(self.modules())
 
     def forward(self, x):
-
-        N, I, C, T, V, M = x.size()
+        logging.debug(f"shape of the input is {x.shape}")
+        # N, I, C, T, V, M = x.size()  # N:batch size, I:no of input types, C:no of channel, T:frames, V:no of joints, M:no of people
+        N, M, V, C = x.size()
 
         # input branches
         x_cat = []
         for i, branch in enumerate(self.input_branches):
-            x_cat.append(branch(x[:,i,:,:,:,:]))
+            x_cat.append(branch(x))
         x = torch.cat(x_cat, dim=1)
+
+        logging.debug(f"shape after the input branch is {x.shape}")
 
         # main stream
         for layer in self.main_stream:
             x = layer(x)
 
+        logging.debug(f"shape after the main stream is {x.shape}")
+
         # extract feature
         _, C, T, V = x.size()
         feature = x.view(N, M, C, T, V).permute(0, 2, 3, 4, 1)
+
+        logging.debug(f"shape after extracting features is {x.shape}")
 
         # output
         x = self.global_pooling(x)
         x = x.view(N, M, -1).mean(dim=1)
         x = self.fcn(x)
+
+        logging.debug(f"shape of the output is {x.shape}")
 
         return x, feature
 
@@ -202,5 +210,3 @@ def zero_init_lastBN(modules):
         if isinstance(m, ResGCNModule):
             if hasattr(m.scn, 'bn_up'):
                 nn.init.constant_(m.scn.bn_up.weight, 0)
-            if hasattr(m.tcn, 'bn_up'):
-                nn.init.constant_(m.tcn.bn_up.weight, 0)

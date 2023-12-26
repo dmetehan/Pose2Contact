@@ -7,8 +7,9 @@ from torch.utils.data import Dataset
 
 class Flickr(Dataset):
 
-    def __init__(self, path="dataset/flickr", _set='train', annot_file_name="pose_detections.json"):
-        self.data = self.read_data(os.path.join(path, _set, annot_file_name))
+    def __init__(self, phase, path="data/flickr", annot_file_name="pose_detections.json"):
+        self.data = self.read_data(os.path.join(path, phase, annot_file_name))
+        self.datashape = [2, 17, 3]
 
     @staticmethod
     def remove_ambiguous(data): return [data[d] for d in range(len(data)) if data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
