@@ -44,7 +44,7 @@ class Processor(Initializer):
 
             # Calculating Balanced Accuracy
             for i in range(self.num_class):
-                num_top1_perclass[i] += reco_top1.eq(buffer_perclass[i][:len(reco_top1)]).sum().item()
+                num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
                 num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
 
             # Showing Progress
@@ -64,7 +64,7 @@ class Processor(Initializer):
         timer['total'] = time() - timer['start_time']
         # Showing Train Results
         train_acc = num_top1 / num_sample
-        train_bacc = np.average(num_top1_perclass / num_sample_perclass)
+        train_bacc = float(np.average(num_top1_perclass / num_sample_perclass))
         if self.scalar_writer:
             self.scalar_writer.add_scalar('train_acc', train_acc, self.global_step)
             self.scalar_writer.add_scalar('train_bacc', train_bacc, self.global_step)
@@ -112,7 +112,7 @@ class Processor(Initializer):
 
                 # Calculating Balanced Accuracy
                 for i in range(self.num_class):
-                    num_top1_perclass[i] += reco_top1.eq(buffer_perclass[i][:len(reco_top1)]).sum().item()
+                    num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
                     num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
 
                 # Calculating Confusion Matrix
@@ -125,11 +125,11 @@ class Processor(Initializer):
 
         # Showing Evaluating Results
         acc_top1 = num_top1 / num_sample
-        bacc_top1 = np.average(num_top1_perclass / num_sample_perclass)
+        bacc_top1 = float(np.average(num_top1_perclass / num_sample_perclass))
         eval_loss = sum(eval_loss) / len(eval_loss)
         eval_time = time() - start_eval_time
         eval_speed = len(self.eval_loader) * self.eval_batch_size / eval_time / len(self.args.gpus)
-        logging.info('Top-1 accuracy: {:d}/{:d}({:.2%}), Balanced accuracy: {{:.2f%}},Mean loss:{:.4f}'.format(
+        logging.info('Top-1 accuracy: {:d}/{:d}({:.2f}), Balanced accuracy: {:.2f},Mean loss:{:.4f}'.format(
             num_top1, num_sample, acc_top1, bacc_top1, eval_loss
         ))
         logging.info('Evaluating time: {:.2f}s, Speed: {:.2f} sequnces/(second*GPU)'.format(
@@ -143,9 +143,9 @@ class Processor(Initializer):
 
         torch.cuda.empty_cache()
         if save_score:
-            return acc_top1, score
+            return bacc_top1, acc_top1, score
         else:
-            return acc_top1, cm
+            return bacc_top1, acc_top1, cm
 
     def start(self):
         start_time = time()
@@ -170,7 +170,7 @@ class Processor(Initializer):
         else:
             # Resuming
             start_epoch = 0
-            best_state = {'acc_top1': 0, 'cm': 0, 'best_epoch': 0}
+            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'best_epoch': 0}
             if self.args.resume:
                 logging.info('Loading checkpoint ...')
                 checkpoint = U.load_checkpoint(self.args.work_dir)
@@ -181,7 +181,8 @@ class Processor(Initializer):
                 best_state.update(checkpoint['best_state'])
                 self.global_step = start_epoch * len(self.train_loader)
                 logging.info('Start epoch: {}'.format(start_epoch + 1))
-                logging.info('Best accuracy: {:.2%}'.format(best_state['acc_top1']))
+                logging.info('Best balanced accuracy: {:.2%}'.format(best_state['bacc_top1']))
+                logging.info('accuracy: {:.2%}'.format(best_state['acc_top1']))
                 logging.info('Successful!')
                 logging.info('')
 
@@ -196,10 +197,10 @@ class Processor(Initializer):
                 is_best = False
                 if (epoch + 1) % self.eval_interval(epoch) == 0:
                     logging.info('Evaluating for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
-                    acc_top1, cm = self.eval()
-                    if acc_top1 > best_state['acc_top1']:
+                    bacc_top1, acc_top1, cm = self.eval()
+                    if bacc_top1 > best_state['bacc_top1']:
                         is_best = True
-                        best_state.update({'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
+                        best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
 
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
@@ -207,8 +208,8 @@ class Processor(Initializer):
                     self.model.module.state_dict(), self.optimizer.state_dict(), self.scheduler.state_dict(),
                     epoch + 1, best_state, is_best, self.args.work_dir, self.save_dir, self.model_name
                 )
-                logging.info('Best top-1 accuracy: {:.2%}@{}th epoch, Total time: {}'.format(
-                    best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
+                logging.info('Best balanced accuracy (accuracy): {:.2%} ({:.2%})@{}th epoch, Total time: {}'.format(
+                    best_state['bacc_top1'], best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
                 ))
                 logging.info('')
             np.savetxt('{}/cm.csv'.format(self.save_dir), cm, fmt="%s", delimiter=",")
@@ -235,7 +236,7 @@ class Processor(Initializer):
         # location = self.location_loader.load(names) if self.location_loader else []
 
         # Calculating Output
-        acc_top1, score = self.eval(save_score=True)
+        bacc_top1, acc_top1, score = self.eval(save_score=True)
         # self.model.eval()
         # out, feature = self.model(x.float().to(self.device))
 

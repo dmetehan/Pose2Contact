@@ -89,7 +89,7 @@ class Initializer:
         dataset_args['debug'] = self.args.debug
         self.train_batch_size = dataset_args['train_batch_size']
         self.eval_batch_size = dataset_args['eval_batch_size']
-        self.feeders, self.data_shape, self.num_class, self.A, self.parts = dataset.create(
+        self.feeders, self.data_shape, self.num_class, self.A, self.parts, self.class_weights = dataset.create(
             self.args.dataset, **dataset_args
         )
         self.train_loader = DataLoader(self.feeders['train'],
@@ -154,5 +154,7 @@ class Initializer:
         logging.info('LR_Scheduler: {} {}'.format(self.args.lr_scheduler, scheduler_args))
 
     def init_loss_func(self):
-        self.loss_func = torch.nn.CrossEntropyLoss().to(self.device)
+        logging.info(f"Initializing loss function with class weights: {self.class_weights}")
+        class_weights = torch.FloatTensor(self.class_weights).to(self.device)
+        self.loss_func = torch.nn.CrossEntropyLoss(weight=class_weights).to(self.device)
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))
