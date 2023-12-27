@@ -9,9 +9,11 @@ from .initializer import Initializer
 class Processor(Initializer):
 
     def train(self, epoch):
+        # print(self.model)
         self.model.train()
         timer = dict(start_time=time(), curr_time=time(), end_time=time(), dataloader=0.001, model=0.001, statistics=0.001)
-        num_top1, num_sample = 0, 0
+        buffer_perclass = [(torch.ones(self.train_batch_size) * i).to(self.device) for i in range(self.num_class)]
+        num_top1, num_sample, num_top1_perclass, num_sample_perclass = 0, 0, torch.zeros(self.num_class), torch.zeros(self.num_class)
         train_iter = self.train_loader if self.no_progress_bar else tqdm(self.train_loader, dynamic_ncols=True)
         for num, (x, y) in enumerate(train_iter):
             self.optimizer.zero_grad()
@@ -40,6 +42,11 @@ class Processor(Initializer):
             reco_top1 = out.max(1)[1]
             num_top1 += reco_top1.eq(y).sum().item()
 
+            # Calculating Balanced Accuracy
+            for i in range(self.num_class):
+                num_top1_perclass[i] += reco_top1.eq(buffer_perclass[i][:len(reco_top1)]).sum().item()
+                num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
+
             # Showing Progress
             lr = self.optimizer.param_groups[0]['lr']
             if self.scalar_writer:
@@ -57,10 +64,12 @@ class Processor(Initializer):
         timer['total'] = time() - timer['start_time']
         # Showing Train Results
         train_acc = num_top1 / num_sample
+        train_bacc = np.average(num_top1_perclass / num_sample_perclass)
         if self.scalar_writer:
             self.scalar_writer.add_scalar('train_acc', train_acc, self.global_step)
-        logging.info('Epoch: {}/{}, Training accuracy: {:d}/{:d}({:.2%}), Training time: {:.2f}s'.format(
-            epoch + 1, self.max_epoch, num_top1, num_sample, train_acc, timer['total']
+            self.scalar_writer.add_scalar('train_bacc', train_bacc, self.global_step)
+        logging.info('Epoch: {}/{}, Training accuracy: {:d}/{:d}({:.2%}), Training balanced accuracy: {:.2%}, Training time: {:.2f}s'.format(
+            epoch + 1, self.max_epoch, num_top1, num_sample, train_acc, train_bacc, timer['total']
         ))
         logging.info('Dataloader: {:.2f}s({:.1f}%), Network: {:.2f}s({:.1f}%), Statistics: {:.2f}s({:.1f}%)'.format(
             timer['dataloader'], timer['dataloader'] / timer['total'] * 100, timer['model'], timer['model'] / timer['total'] * 100,
@@ -75,6 +84,8 @@ class Processor(Initializer):
         with torch.no_grad():
             num_top1 = 0
             num_sample, eval_loss = 0, []
+            buffer_perclass = [(torch.ones(self.eval_batch_size) * i).to(self.device) for i in range(self.num_class)]
+            num_top1_perclass, num_sample_perclass = torch.zeros(self.num_class), torch.zeros(self.num_class)
             cm = np.zeros((self.num_class, self.num_class))
             eval_iter = self.eval_loader if self.no_progress_bar else tqdm(self.eval_loader, dynamic_ncols=True)
             for num, (x, y) in enumerate(eval_iter):
@@ -99,6 +110,11 @@ class Processor(Initializer):
                 reco_top1 = out.max(1)[1]
                 num_top1 += reco_top1.eq(y).sum().item()
 
+                # Calculating Balanced Accuracy
+                for i in range(self.num_class):
+                    num_top1_perclass[i] += reco_top1.eq(buffer_perclass[i][:len(reco_top1)]).sum().item()
+                    num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
+
                 # Calculating Confusion Matrix
                 for i in range(x.size(0)):
                     cm[y[i], reco_top1[i]] += 1
@@ -109,11 +125,12 @@ class Processor(Initializer):
 
         # Showing Evaluating Results
         acc_top1 = num_top1 / num_sample
+        bacc_top1 = np.average(num_top1_perclass / num_sample_perclass)
         eval_loss = sum(eval_loss) / len(eval_loss)
         eval_time = time() - start_eval_time
         eval_speed = len(self.eval_loader) * self.eval_batch_size / eval_time / len(self.args.gpus)
-        logging.info('Top-1 accuracy: {:d}/{:d}({:.2%}), Mean loss:{:.4f}'.format(
-            num_top1, num_sample, acc_top1, eval_loss
+        logging.info('Top-1 accuracy: {:d}/{:d}({:.2%}), Balanced accuracy: {{:.2f%}},Mean loss:{:.4f}'.format(
+            num_top1, num_sample, acc_top1, bacc_top1, eval_loss
         ))
         logging.info('Evaluating time: {:.2f}s, Speed: {:.2f} sequnces/(second*GPU)'.format(
             eval_time, eval_speed
@@ -121,6 +138,7 @@ class Processor(Initializer):
         logging.info('')
         if self.scalar_writer:
             self.scalar_writer.add_scalar('eval_acc', acc_top1, self.global_step)
+            self.scalar_writer.add_scalar('eval_bacc', bacc_top1, self.global_step)
             self.scalar_writer.add_scalar('eval_loss', eval_loss, self.global_step)
 
         torch.cuda.empty_cache()

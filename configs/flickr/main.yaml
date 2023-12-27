@@ -12,7 +12,7 @@ no_progress_bar: False
 dataset: flickr
 dataset_args:
   graph: mutual
-  labeling: geometric
+  labeling: spatial
   processing: symmetry
   train_batch_size: 64
   eval_batch_size: 64

@@ -28,19 +28,19 @@ class Graph:
 
     def _get_edge(self):
         if self.dataset == 'flickr':
-            num_node = 18
-            neighbor_link = [(4, 3), (3, 2), (7, 6), (6, 5), (13, 12), (12, 11),
-                             (10, 9), (9, 8), (11, 5), (8, 2), (5, 1), (2, 1),
-                             (0, 1), (15, 0), (14, 0), (17, 15), (16, 14), (8, 11)]
-            connect_joint = np.array([1, 1, 1, 2, 3, 1, 5, 6, 2, 8, 9, 5, 11, 12, 0, 0, 14, 15])
+            num_node = 17
+            neighbor_link = [(10, 8), (8, 6), (9, 7), (7, 5), (1, 13), (13, 11),
+                             (16, 14), (14, 12), (11, 5), (12, 6), (5, 3), (6, 4),
+                             (1, 0), (2, 0), (3, 1), (4, 2), (12, 11), (5, 6)]
+            connect_joint = np.array([0, 0, 5, 6, 14, 0, 7, 12, 11, 0, 2, 5, 13, 0, 0, 6, 8])
             parts = [
-                np.array([5, 6, 7]),  # left_arm
-                np.array([2, 3, 4]),  # right_arm
-                np.array([11, 12, 13]),  # left_leg
-                np.array([8, 9, 10]),  # right_leg
-                np.array([0, 1, 14, 15, 16, 17])  # torso
+                np.array([5, 7, 9]),  # left_arm
+                np.array([6, 8, 10]),  # right_arm
+                np.array([11, 13, 15]),  # left_leg
+                np.array([12, 14, 16]),  # right_leg
+                np.array([0, 1, 2, 3, 4])  # torso
             ]
-            center = 1
+            center = 0
         elif self.dataset in ['ntu', 'ntu120', 'ntu_mutual', 'ntu120_mutual', 'ntu_original']:
             if self.graph == 'physical':
                 num_node = 25
