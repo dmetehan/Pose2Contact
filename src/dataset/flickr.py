@@ -14,7 +14,8 @@ class Flickr(Dataset):
 
     def calc_class_weights(self):
         labels = [y for _, y in self.data]
-        return [labels.count(1)/len(labels), labels.count(0)/len(labels)]  # reversed instance ratio
+        return [1, 4]
+        # return [labels.count(1)/len(labels), labels.count(0)/len(labels)]  # reversed instance ratio
 
     @staticmethod
     def remove_ambiguous(data): return [data[d] for d in range(len(data)) if data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact

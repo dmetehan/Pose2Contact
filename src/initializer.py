@@ -89,6 +89,7 @@ class Initializer:
         dataset_args['debug'] = self.args.debug
         self.train_batch_size = dataset_args['train_batch_size']
         self.eval_batch_size = dataset_args['eval_batch_size']
+        # TODO: Carry class_weights to the config for decoupling
         self.feeders, self.data_shape, self.num_class, self.A, self.parts, self.class_weights = dataset.create(
             self.args.dataset, **dataset_args
         )

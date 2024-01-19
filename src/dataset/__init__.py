@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from .flickr import Flickr
+from .youth import Youth
 from torch.utils.data import DataLoader
 import logging
 
@@ -11,6 +12,7 @@ from .flickr import Flickr
 
 __data_args = {
     'flickr': {'class': 2, 'shape': [3, 6, 300, 25, 2], 'feeder': Flickr},
+    'youth': {'class': 2, 'shape': [3, 6, 300, 25, 2], 'feeder': Youth},
 }
 
 

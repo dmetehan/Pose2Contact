@@ -27,7 +27,7 @@ class Graph:
         return self.A
 
     def _get_edge(self):
-        if self.dataset == 'flickr':
+        if self.dataset in ['flickr', 'youth']:
             num_node = 17
             neighbor_link = [(10, 8), (8, 6), (9, 7), (7, 5), (1, 13), (13, 11),
                              (16, 14), (14, 12), (11, 5), (12, 6), (5, 3), (6, 4),
