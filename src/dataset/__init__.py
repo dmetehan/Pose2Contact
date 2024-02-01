@@ -13,10 +13,12 @@ from .flickr import Flickr
 __data_args = {
     'flickr': {'class': 2, 'shape': [3, 6, 300, 25, 2], 'feeder': Flickr},
     'youth': {'class': 2, 'shape': [3, 6, 300, 25, 2], 'feeder': Youth},
+    'flickr_signature': {'class': 21, 'shape': [3, 6, 300, 25, 2], 'feeder': Flickr},
+    'youth_signature': {'class': 21, 'shape': [3, 6, 300, 25, 2], 'feeder': Youth},
 }
 
 
-def create(dataset, trainset, evalset, **kwargs):
+def create(dataset, subset, trainset, evalset, **kwargs):
     g = Graph(dataset, **kwargs)
     try:
         data_args = __data_args[dataset]
@@ -28,8 +30,8 @@ def create(dataset, trainset, evalset, **kwargs):
         raise ValueError()
 
     feeders = {
-        'train': data_args['feeder'](phase=trainset),
-        'eval': data_args['feeder'](phase=evalset),
+        'train': data_args['feeder'](phase=trainset, subset=subset),
+        'eval': data_args['feeder'](phase=evalset, subset=subset),
     }
 
     class_weights = feeders['train'].class_weights

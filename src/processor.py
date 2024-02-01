@@ -28,7 +28,7 @@ class Processor(Initializer):
             out, _ = self.model(x)
 
             # Updating Weights
-            loss = self.loss_func(out, y)
+            loss = self.loss_func(out, y.float())
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()

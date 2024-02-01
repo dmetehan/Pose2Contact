@@ -11,6 +11,7 @@ no_progress_bar: False
 # flickr, youth
 dataset: youth
 dataset_args:
+  subset: binary
   trainset: trainval
   evalset: test
   graph: mutual
@@ -24,10 +25,10 @@ dataset_args:
   root_folder: ./data/flickr
 
 # Model
-model_type: 2PGCN
+model_type: TPGCN
 model_args:
   att_type: stpa
-  kernel_size: [5,2]
+  kernel_size: [3,2]
   block_structure: m19
   reduct_ratio: 2
   bias: True

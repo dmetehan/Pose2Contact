@@ -9,9 +9,9 @@ no_progress_bar: False
 
 # Data Loader
 # flickr, youth
-dataset: flickr
+dataset: youth_signature
 dataset_args:
-  subset: binary
+  subset: signature
   trainset: train
   evalset: test
   graph: mutual
@@ -25,7 +25,7 @@ dataset_args:
   root_folder: ./data/flickr
 
 # Model
-model_type: TPGCN
+model_type: DoubleTPGCN
 model_args:
   att_type: stpa
   kernel_size: [3,2]

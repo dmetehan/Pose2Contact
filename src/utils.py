@@ -125,7 +125,7 @@ def set_logging(args):
         save_dir = '{}/{}/{}'.format(args.work_dir, config, ct)
     create_folder(save_dir)
     log_format = '[ %(asctime)s ] %(message)s'
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=log_format)
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG if args.debug else logging.INFO, format=log_format)
     handler = logging.FileHandler('{}/log.txt'.format(save_dir), mode='w', encoding='UTF-8')
     handler.setFormatter(logging.Formatter(log_format))
     logging.getLogger().addHandler(handler)

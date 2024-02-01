@@ -114,8 +114,8 @@ class Initializer:
             'A': torch.Tensor(self.A),
             'parts': self.parts,
         }
-        # self.model = model.create(self.args.model_type, **(self.args.model_args), **kwargs)
-        self.model = model.create_model(torch.Tensor(self.A))
+        self.model = model.create(self.args.model_type, **self.args.model_args, **kwargs)
+        # self.model = model.create_model(torch.Tensor(self.A))
         logging.info('Model: {} {}'.format(self.args.model_type, self.args.model_args))
         with open('{}/model.txt'.format(self.save_dir), 'w') as f:
             print(self.model, file=f)
@@ -157,5 +157,6 @@ class Initializer:
     def init_loss_func(self):
         logging.info(f"Initializing loss function with class weights: {self.class_weights}")
         class_weights = torch.FloatTensor(self.class_weights).to(self.device)
-        self.loss_func = torch.nn.CrossEntropyLoss(weight=class_weights).to(self.device)
+        #TODO: Add class weights
+        self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))

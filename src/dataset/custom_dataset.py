@@ -2,12 +2,16 @@ import os
 import json
 import logging
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 
 class CustomDataset(Dataset):
 
-    def __init__(self, phase, path, annot_file_name):
+    def __init__(self, phase, path, annot_file_name, subset='binary', fold='fold0'):
+        self.subset = subset
+        if subset == 'signature':
+            path = os.path.join(path, fold)
         self.data = self.read_data(os.path.join(path, phase, annot_file_name))
         self.convert_to_flickr()
         self.remove_ambiguous()
@@ -25,7 +29,18 @@ class CustomDataset(Dataset):
 
     def remove_ambiguous(self): self.data = [self.data[d] for d in range(len(self.data)) if self.data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
 
-    def format_data(self): self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
+    def format_data(self):
+        if self.subset == 'binary':
+            self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
+        elif self.subset == 'signature':
+            self.data = [(np.array(self.data[d]['preds']), self.onehot_sig(self.data[d]['signature'])) for d in range(len(self.data))]
+
+    @staticmethod
+    def onehot_sig(signature, res=21):
+        mat = torch.zeros((res, res), dtype=int)
+        for adult, child in signature:
+            mat[adult, child] = 1
+        return mat.flatten()
 
     @staticmethod
     def read_data(annot_file_path):

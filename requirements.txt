@@ -1,11 +1,11 @@
 seaborn
-pyyaml~=5.3.1
+pyyaml
 nvidia-ml-py3
-tensorboardX~=2.6.2.2
-thop~=0.1.1.post2209072238
+tensorboardX
+thop
 
-
-torch~=1.8.1+cu102
-numpy~=1.18.5
-tqdm~=4.56.2
-pynvml~=11.5.0
+numpy
+tqdm
+pynvml
+torch
+pandas
