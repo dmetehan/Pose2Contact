@@ -41,175 +41,6 @@ class Graph:
                 np.array([0, 1, 2, 3, 4])  # torso
             ]
             center = 0
-        elif self.dataset in ['ntu', 'ntu120', 'ntu_mutual', 'ntu120_mutual', 'ntu_original']:
-            if self.graph == 'physical':
-                num_node = 25
-                neighbor_1base = [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21),
-                                  (6, 5), (7, 6), (8, 7), (9, 21), (10, 9),
-                                  (11, 10), (12, 11), (13, 1), (14, 13), (15, 14),
-                                  (16, 15), (17, 1), (18, 17), (19, 18), (20, 19),
-                                  (22, 23), (23, 8), (24, 25), (25, 12)]
-                neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
-                connect_joint = np.array([2, 2, 21, 3, 21, 5, 6, 7, 21, 9, 10, 11, 1, 13, 14, 15, 1, 17, 18, 19, 2, 23, 8, 25, 12]) - 1
-                parts = [
-                    np.array([5, 6, 7, 8, 22, 23]) - 1,  # left_arm
-                    np.array([9, 10, 11, 12, 24, 25]) - 1,  # right_arm
-                    np.array([13, 14, 15, 16]) - 1,  # left_leg
-                    np.array([17, 18, 19, 20]) - 1,  # right_leg
-                    np.array([1, 2, 3, 4, 21]) - 1  # torso
-                ]
-                center = 21 - 1
-            elif self.graph == 'mutual':
-                num_node = 50
-                neighbor_1base = [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21),
-                                  (6, 5), (7, 6), (8, 7), (9, 21), (10, 9),
-                                  (11, 10), (12, 11), (13, 1), (14, 13), (15, 14),
-                                  (16, 15), (17, 1), (18, 17), (19, 18), (20, 19),
-                                  (22, 23), (23, 8), (24, 25), (25, 12)] + \
-                                 [(26, 27), (27, 46), (28, 46), (29, 28), (30, 46),
-                                  (31, 30), (32, 31), (33, 32), (34, 46), (35, 34),
-                                  (36, 35), (37, 36), (38, 26), (39, 38), (40, 39),
-                                  (41, 40), (42, 26), (43, 42), (44, 43), (45, 44),
-                                  (47, 48), (48, 33), (49, 50), (50, 37)] + \
-                                 [(21, 46)]
-                neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
-                connect_joint = np.array(
-                    [1, 1, 20, 2, 20, 4, 5, 6, 20, 8, 9, 10, 0, 12, 13, 14, 0, 16, 17, 18, 1, 22, 7, 24, 11, 26, 26, 45, 27, 45, 29, 30, 31, 45, 33, 34, 35, 25, 37, 38, 39, 25, 41, 42, 43, 26, 47, 32,
-                     49, 36])
-                parts = [
-                    # left_arm
-                    np.array([5, 6, 7, 8, 22, 23]) - 1,
-                    np.array([5, 6, 7, 8, 22, 23]) + 25 - 1,
-                    # right_arm
-                    np.array([9, 10, 11, 12, 24, 25]) - 1,
-                    np.array([9, 10, 11, 12, 24, 25]) + 25 - 1,
-                    # left_leg
-                    np.array([13, 14, 15, 16]) - 1,
-                    np.array([13, 14, 15, 16]) + 25 - 1,
-                    # right_leg
-                    np.array([17, 18, 19, 20]) - 1,
-                    np.array([17, 18, 19, 20]) + 25 - 1,
-                    # torso
-                    np.array([1, 2, 3, 4, 21]) - 1,
-                    np.array([1, 2, 3, 4, 21]) + 25 - 1
-                ]
-                center = 21 - 1
-            elif self.graph == 'mutual-inter':
-                num_node = 50
-                neighbor_1base = [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21),
-                                  (6, 5), (7, 6), (8, 7), (9, 21), (10, 9),
-                                  (11, 10), (12, 11), (13, 1), (14, 13), (15, 14),
-                                  (16, 15), (17, 1), (18, 17), (19, 18), (20, 19),
-                                  (22, 23), (23, 8), (24, 25), (25, 12)] + \
-                                 [(26, 27), (27, 46), (28, 46), (29, 28), (30, 46),
-                                  (31, 30), (32, 31), (33, 32), (34, 46), (35, 34),
-                                  (36, 35), (37, 36), (38, 26), (39, 38), (40, 39),
-                                  (41, 40), (42, 26), (43, 42), (44, 43), (45, 44),
-                                  (47, 48), (48, 33), (49, 50), (50, 37)] + \
-                                 [(21, 46)] + \
-                                 [(23, 25), (48, 50), (23, 48), (25, 50)]
-                neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
-                connect_joint = np.array(
-                    [1, 1, 20, 2, 20, 4, 5, 6, 20, 8, 9, 10, 0, 12, 13, 14, 0, 16, 17, 18, 1, 22, 7, 24, 11, 26, 26, 45, 27, 45, 29, 30, 31, 45, 33, 34, 35, 25, 37, 38, 39, 25, 41, 42, 43, 26, 47, 32,
-                     49, 36])
-                parts = [
-                    # left_arm
-                    np.array([5, 6, 7, 8, 22, 23]) - 1,
-                    np.array([5, 6, 7, 8, 22, 23]) + 25 - 1,
-                    # right_arm
-                    np.array([9, 10, 11, 12, 24, 25]) - 1,
-                    np.array([9, 10, 11, 12, 24, 25]) + 25 - 1,
-                    # left_leg
-                    np.array([13, 14, 15, 16]) - 1,
-                    np.array([13, 14, 15, 16]) + 25 - 1,
-                    # right_leg
-                    np.array([17, 18, 19, 20]) - 1,
-                    np.array([17, 18, 19, 20]) + 25 - 1,
-                    # torso
-                    np.array([1, 2, 3, 4, 21]) - 1,
-                    np.array([1, 2, 3, 4, 21]) + 25 - 1
-                ]
-                center = 21 - 1
-        elif self.dataset == 'sbu':
-            if self.graph == 'physical':
-                num_node = 15
-                neighbor_1base = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (3, 7),
-                                  (7, 8), (8, 9), (3, 10), (10, 11), (11, 12),
-                                  (3, 13), (13, 14), (14, 15)]
-                neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
-                connect_joint = np.array([2, 3, 3, 3, 4, 5, 3, 7, 8, 3, 10, 11, 3, 13, 14]) - 1
-                parts = [
-                    # left_arm
-                    np.array([4, 5, 6]) - 1,
-                    # right_arm
-                    np.array([7, 8, 9]) - 1,
-                    # left_leg
-                    np.array([10, 11, 12]) - 1,
-                    # right_leg
-                    np.array([13, 14, 15]) - 1,
-                    # torso
-                    np.array([1, 2, 3]) - 1,
-                ]
-                center = 3 - 1
-            elif self.graph == 'mutual':
-                num_node = 30
-                neighbor_1base = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (3, 7),
-                                  (7, 8), (8, 9), (3, 10), (10, 11), (11, 12),
-                                  (3, 13), (13, 14), (14, 15)]
-                neighbor_1base += [(i + 15, j + 15) for (i, j) in neighbor_1base] + [(2, 2 + 15)]
-                neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
-                connect_joint = np.array([2, 3, 3, 3, 4, 5, 3, 7, 8, 3, 10, 11, 3, 13, 14]) - 1
-                parts = [
-                    # left_arm
-                    np.array([4, 5, 6]) - 1,
-                    np.array([4, 5, 6]) + 15 - 1,
-                    # right_arm
-                    np.array([7, 8, 9]) - 1,
-                    np.array([7, 8, 9]) + 15 - 1,
-                    # left_leg
-                    np.array([10, 11, 12]) - 1,
-                    np.array([10, 11, 12]) + 15 - 1,
-                    # right_leg
-                    np.array([13, 14, 15]) - 1,
-                    np.array([13, 14, 15]) + 15 - 1,
-                    # torso
-                    np.array([1, 2, 3]) - 1,
-                    np.array([1, 2, 3]) + 15 - 1,
-                ]
-                center = 3 - 1
-        elif self.dataset == 'volleyball':
-            num_node = 25
-            neighbor_link = [(0, 1), (0, 15), (0, 16), (15, 17), (16, 18),
-                             (1, 2), (2, 3), (3, 4), (1, 5), (5, 6), (6, 7),
-                             (1, 8), (8, 9), (9, 10), (10, 11), (11, 24), (11, 22), (22, 23),
-                             (8, 12), (12, 13), (13, 14), (14, 21), (14, 19), (19, 20)
-                             ]
-            connect_joint = np.array([1, 1, 1, 2, 3, 1, 5, 6, 1, 8, 9, 10, 8, 12, 13, 0, 0, 15, 16, 14, 19, 14, 11, 22, 11])
-            parts = [
-                np.array([5, 6, 7]),  # left_arm
-                np.array([2, 3, 4]),  # right_arm
-                np.array([9, 10, 11, 22, 23, 24]),  # left_leg
-                np.array([12, 13, 14, 19, 20, 21]),  # right_leg
-                np.array([0, 1, 8, 15, 16, 17, 18])  # torso
-            ]
-            center = 1
-            if self.graph == 'multi-person':
-                neighbor_link_nperson = []
-                connect_joint_nperson = []
-                parts_nperson = []
-                for i in range(self.num_person_out):
-                    for x in connect_joint:
-                        connect_joint_nperson.append(x + i * num_node)
-                    for x, y in neighbor_link:
-                        neighbor_link_nperson.append((x + i * num_node, y + i * num_node))
-                    for p in range(len(parts)):
-                        parts_nperson.append(parts[p] + i * num_node)
-                num_node *= self.num_person_out
-
-                neighbor_link = neighbor_link_nperson
-                connect_joint = connect_joint_nperson
-                parts = parts_nperson
-
         else:
             logging.info('')
             logging.error('Error: Do NOT exist this dataset: {}!'.format(self.dataset))
@@ -286,7 +117,6 @@ class Graph:
             for i in range(len(valid_hop)):
                 A[i] = self._normalize_digraph(A[i])
 
-
         elif self.labeling == 'eye':
 
             valid_hop = range(0, self.max_hop + 1, self.dilation)
@@ -305,7 +135,6 @@ class Graph:
                 A[i, v:, :v] = np.eye(v, v)
                 A[i, :v, v:] = np.eye(v, v)
                 A[i] = self._normalize_digraph(A[i])
-
 
         elif self.labeling == 'pairwise1':
             assert 'mutual' in self.graph
@@ -341,7 +170,8 @@ class Graph:
 
         return A
 
-    def _normalize_digraph(self, A):
+    @staticmethod
+    def _normalize_digraph(A):
         Dl = np.sum(A, 0)
         num_node = A.shape[0]
         Dn = np.zeros((num_node, num_node))

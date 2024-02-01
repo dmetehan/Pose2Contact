@@ -16,19 +16,20 @@ __data_args = {
 }
 
 
-def create(dataset, **kwargs):
+def create(dataset, trainset, evalset, **kwargs):
     g = Graph(dataset, **kwargs)
     try:
         data_args = __data_args[dataset]
         num_class = data_args['class']
+        # train_set, eval_set = data_args['train'], data_args['eval']
     except:
         logging.info('')
-        logging.error('Error: Do NOT exist this dataset: {}!'.format(dataset))
+        logging.error('Error: {} dataset does NOT exist!'.format(dataset))
         raise ValueError()
 
     feeders = {
-        'train': data_args['feeder'](phase='train'),
-        'eval': data_args['feeder'](phase='test'),
+        'train': data_args['feeder'](phase=trainset),
+        'eval': data_args['feeder'](phase=evalset),
     }
 
     class_weights = feeders['train'].class_weights

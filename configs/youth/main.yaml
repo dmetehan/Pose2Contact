@@ -8,9 +8,11 @@ no_progress_bar: False
 
 
 # Data Loader
-# ntu, ntu120, ntu_mutual, ntu120_mutual, sbu
+# flickr, youth
 dataset: youth
 dataset_args:
+  trainset: trainval
+  evalset: test
   graph: mutual
   labeling: spatial
   processing: symmetry
@@ -25,7 +27,7 @@ dataset_args:
 model_type: 2PGCN
 model_args:
   att_type: stpa
-  kernel_size: [3,2]
+  kernel_size: [5,2]
   block_structure: m19
   reduct_ratio: 2
   bias: True

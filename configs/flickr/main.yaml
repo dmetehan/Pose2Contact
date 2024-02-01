@@ -8,9 +8,11 @@ no_progress_bar: False
 
 
 # Data Loader
-# ntu, ntu120, ntu_mutual, ntu120_mutual, sbu
+# flickr, youth
 dataset: flickr
 dataset_args:
+  trainset: train
+  evalset: test
   graph: mutual
   labeling: spatial
   processing: symmetry
