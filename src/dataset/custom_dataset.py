@@ -8,11 +8,11 @@ from torch.utils.data import Dataset
 
 class CustomDataset(Dataset):
 
-    def __init__(self, phase, path, annot_file_name, subset='binary', fold='fold0'):
+    def __init__(self, phase, root_folder, annot_file_name, subset='binary', fold='fold0', **kwargs):
         self.subset = subset
         if subset == 'signature':
-            path = os.path.join(path, fold)
-        self.data = self.read_data(os.path.join(path, phase, annot_file_name))
+            root_folder = os.path.join(root_folder, fold)
+        self.data = self.read_data(os.path.join(root_folder, phase, annot_file_name))
         self.convert_to_flickr()
         self.remove_ambiguous()
         self.format_data()
@@ -23,7 +23,7 @@ class CustomDataset(Dataset):
 
     def calc_class_weights(self):
         # TODO: Write class weights to config file?
-        labels = [y for _, y in self.data]
+        # labels = [y for _, y in self.data]
         return [1, 4]
         # return [labels.count(1)/len(labels), labels.count(0)/len(labels)]  # reversed instance ratio
 
@@ -33,11 +33,13 @@ class CustomDataset(Dataset):
         if self.subset == 'binary':
             self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
         elif self.subset == 'signature':
-            self.data = [(np.array(self.data[d]['preds']), self.onehot_sig(self.data[d]['signature'])) for d in range(len(self.data))]
+            self.data = [(np.array(self.data[d]['preds']),
+                          (self.onehot_sig(self.data[d]['signature21'], res=21),
+                           self.onehot_sig(self.data[d]['signature6'], res=6))) for d in range(len(self.data))]
 
     @staticmethod
     def onehot_sig(signature, res=21):
-        mat = torch.zeros((res, res), dtype=int)
+        mat = torch.zeros(res, res, dtype=torch.int8)
         for adult, child in signature:
             mat[adult, child] = 1
         return mat.flatten()

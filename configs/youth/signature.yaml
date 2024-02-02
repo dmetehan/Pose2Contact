@@ -22,7 +22,7 @@ dataset_args:
   num_frame: 1
   transform: False
   crop: True
-  root_folder: ./data/flickr
+  root_folder: ./data/youth
 
 # Model
 model_type: DoubleTPGCN

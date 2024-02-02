@@ -47,11 +47,13 @@ class DoubleTPGCN(nn.Module):
 
         # output child
         self.child_gpooling = nn.AdaptiveAvgPool2d(1)
-        self.child_fcn = nn.Linear(256, num_class)
+        self.child_fcn21 = nn.Linear(256, 21)
+        self.child_fcn6 = nn.Linear(256, 6)
 
         # output adult
         self.adult_gpooling = nn.AdaptiveAvgPool2d(1)
-        self.adult_fcn = nn.Linear(256, num_class)
+        self.adult_fcn21 = nn.Linear(256, 21)
+        self.adult_fcn6 = nn.Linear(256, 6)
 
         # init parameters
         init_param(self.modules())
@@ -91,8 +93,8 @@ class DoubleTPGCN(nn.Module):
         # output
         xchild = self.child_gpooling(xchild)
         xchild = xchild.view(N, M, -1).mean(dim=1)
-        xchild = self.child_fcn(xchild)
-
+        xchild21 = self.child_fcn21(xchild)
+        xchild6 = self.child_fcn6(xchild)
 
         # extract feature
         _, C, T, V = xadult.size()
@@ -101,12 +103,17 @@ class DoubleTPGCN(nn.Module):
         # output
         xadult = self.adult_gpooling(xadult)
         xadult = xadult.view(N, M, -1).mean(dim=1)
-        xadult = self.adult_fcn(xadult)
+        xadult21 = self.adult_fcn21(xadult)
+        xadult6 = self.adult_fcn6(xadult)
 
         logging.debug(f"shape of the xchild is {xchild.shape}")
 
-        x = torch.bmm(xchild.view(-1, self.num_class, 1), xadult.view(-1, 1, self.num_class))
-        x = torch.reshape(x, (-1, self.num_class*self.num_class))
+        # xchild * xadult.T
+        x21 = torch.bmm(xchild21.view(-1, 21, 1), xadult21.view(-1, 1, 21))
+        x21 = torch.reshape(x21, (-1, 21*21))
+
+        x6 = torch.bmm(xchild6.view(-1, 6, 1), xadult6.view(-1, 1, 6))
+        x6 = torch.reshape(x6, (-1, 6*6))
 
         logging.debug(f"shape of the output is {x.shape}")
 
@@ -114,7 +121,7 @@ class DoubleTPGCN(nn.Module):
 
         logging.debug(f"shape of the feature is {feature.shape}")
 
-        return x, feature
+        return (x21, x6), feature
 
     @staticmethod
     def create(_, block_structure, att_type, reduction='r1', **kwargs):

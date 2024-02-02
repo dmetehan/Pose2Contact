@@ -9,9 +9,9 @@ from .custom_dataset import CustomDataset
 
 class Youth(CustomDataset):
 
-    def __init__(self, phase, path="data/youth", subset="binary", annot_file_name="pose_detections.json"):
+    def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections.json", **kwargs):
         self.subset = subset
-        path = os.path.join(path, subset)
+        path = os.path.join(root_folder, subset)
         if subset == 'binary':
             self.prepare_sets(path, annot_file_name)
         elif subset == 'signature':
@@ -40,16 +40,33 @@ class Youth(CustomDataset):
                     # TODO: Currently removing the frames with no pose detections!
                     data_subset = data[data['crop_path'].str.contains('|'.join(set_subj_frames), regex=True)]
 
+                    reg_mapper = self.comb_regs(path, res=6)
+
                     def add_signature(x):
                         subj, frame = x['crop_path'].split('/')[-2:]
-                        x['signature'] = [(elem['adult'], elem['child'])
-                                          for elem in annots[subj][frame]]
+                        x['signature21'] = [(elem['adult'], elem['child'])
+                                            for elem in annots[subj][frame]]
+                        x['signature6'] = [(reg_mapper(elem['adult']), reg_mapper(elem['child']))
+                                           for elem in annots[subj][frame]]
                         return x
 
                     data_subset = data_subset.apply(add_signature, axis=1)
                     set_path = os.path.join(path, f'fold{f}', _set)
                     os.makedirs(set_path)
                     data_subset.to_json(os.path.join(set_path, "pose_detections.json"))
+
+    @staticmethod
+    def comb_regs(path, res=21):
+        assert res in [6, 21]
+        if res == 21:
+            return lambda x: x
+        else:
+            mapping = {}
+            with open(os.path.join(path, "all", "combined_regions_6.txt"), 'r') as f:
+                for i, line in enumerate(f):
+                    for reg in list(map(int, map(str.strip, line.strip().split(',')))):
+                        mapping[reg] = i
+            return lambda x: mapping[x]
 
     def prepare_sets(self, path, annot_file_name):
         if os.path.exists(os.path.join(path, 'train')) and os.path.exists(os.path.join(path, 'test')):

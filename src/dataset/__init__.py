@@ -30,8 +30,8 @@ def create(dataset, subset, trainset, evalset, **kwargs):
         raise ValueError()
 
     feeders = {
-        'train': data_args['feeder'](phase=trainset, subset=subset),
-        'eval': data_args['feeder'](phase=evalset, subset=subset),
+        'train': data_args['feeder'](phase=trainset, subset=subset, **kwargs),
+        'eval': data_args['feeder'](phase=evalset, subset=subset, **kwargs),
     }
 
     class_weights = feeders['train'].class_weights

@@ -1,4 +1,6 @@
 import logging, torch, pickle, numpy as np
+
+from sklearn.metrics import jaccard_score
 from tqdm import tqdm
 from time import time
 
@@ -9,18 +11,23 @@ from .initializer import Initializer
 class Processor(Initializer):
 
     def train(self, epoch):
-        # print(self.model)
         self.model.train()
         timer = dict(start_time=time(), curr_time=time(), end_time=time(), dataloader=0.001, model=0.001, statistics=0.001)
         buffer_perclass = [(torch.ones(self.train_batch_size) * i).to(self.device) for i in range(self.num_class)]
         num_top1, num_sample, num_top1_perclass, num_sample_perclass = 0, 0, torch.zeros(self.num_class), torch.zeros(self.num_class)
+        batch_jaccard21, class_counts21 = 0, torch.zeros(21*21, dtype=int)
+        batch_jaccard6, class_counts6 = 0, torch.zeros(6*6, dtype=int)
         train_iter = self.train_loader if self.no_progress_bar else tqdm(self.train_loader, dynamic_ncols=True)
         for num, (x, y) in enumerate(train_iter):
             self.optimizer.zero_grad()
 
             # Using GPU
             x = x.float().to(self.device)
-            y = y.long().to(self.device)
+            if self.args.dataset_args['subset'] == 'binary':
+                y = y.long().to(self.device)
+            elif self.args.dataset_args['subset'] == 'signature':
+                y21 = y[0].long().to(self.device)
+                y6 = y[1].long().to(self.device)
             timer['dataloader'] += time() - timer['curr_time']
             timer['curr_time'] = time()
 
@@ -28,7 +35,13 @@ class Processor(Initializer):
             out, _ = self.model(x)
 
             # Updating Weights
-            loss = self.loss_func(out, y.float())
+            if self.args.dataset_args['subset'] == 'binary':
+                loss = self.loss_func(out, y.float())
+            elif self.args.dataset_args['subset'] == 'signature':
+                out21, out6 = out
+                loss1 = self.loss_func(out21, y21.float())
+                loss2 = self.loss_func(out6, y6.float())
+                loss = loss1 + loss2
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
@@ -37,15 +50,27 @@ class Processor(Initializer):
             timer['model'] += time() - timer['curr_time']
             timer['curr_time'] = time()
 
-            # Calculating Recognition Accuracies
             num_sample += x.size(0)
-            reco_top1 = out.max(1)[1]
-            num_top1 += reco_top1.eq(y).sum().item()
+            if self.args.dataset_args['subset'] == 'binary':
+                # Calculating Recognition Accuracies
+                reco_top1 = out.max(1)[1]
+                num_top1 += reco_top1.eq(y).sum().item()
 
-            # Calculating Balanced Accuracy
-            for i in range(self.num_class):
-                num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
-                num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
+                # Calculating Balanced Accuracy
+                for i in range(self.num_class):
+                    num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
+                    num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
+            elif self.args.dataset_args['subset'] == 'signature':
+                # Calculating Jaccard Index
+                preds = torch.sigmoid(out21.detach().cpu()) > self.multilabel_thresh
+                batch_jaccard21 += jaccard_score(y21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                class_counts21 += y21.sum(axis=0).detach().cpu()
+                logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21}")
+
+                preds = torch.sigmoid(out6.detach().cpu()) > self.multilabel_thresh
+                batch_jaccard6 += jaccard_score(y6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                class_counts6 += y6.sum(axis=0).detach().cpu()
+                logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6}")
 
             # Showing Progress
             lr = self.optimizer.param_groups[0]['lr']
@@ -62,15 +87,26 @@ class Processor(Initializer):
             timer['curr_time'] = time()
 
         timer['total'] = time() - timer['start_time']
-        # Showing Train Results
-        train_acc = num_top1 / num_sample
-        train_bacc = float(np.average(num_top1_perclass / num_sample_perclass))
-        if self.scalar_writer:
-            self.scalar_writer.add_scalar('train_acc', train_acc, self.global_step)
-            self.scalar_writer.add_scalar('train_bacc', train_bacc, self.global_step)
-        logging.info('Epoch: {}/{}, Training accuracy: {:d}/{:d}({:.2%}), Training balanced accuracy: {:.2%}, Training time: {:.2f}s'.format(
-            epoch + 1, self.max_epoch, num_top1, num_sample, train_acc, train_bacc, timer['total']
-        ))
+        if self.args.dataset_args['subset'] == 'binary':
+            # Showing Train Results
+            train_acc = num_top1 / num_sample
+            train_bacc = float(np.average(num_top1_perclass / num_sample_perclass))
+            if self.scalar_writer:
+                self.scalar_writer.add_scalar('train_acc', train_acc, self.global_step)
+                self.scalar_writer.add_scalar('train_bacc', train_bacc, self.global_step)
+            logging.info('Epoch: {}/{}, Training accuracy: {:d}/{:d}({:.2%}), Training balanced accuracy: {:.2%}, Training time: {:.2f}s'.format(
+                epoch + 1, self.max_epoch, num_top1, num_sample, train_acc, train_bacc, timer['total']
+            ))
+        elif self.args.dataset_args['subset'] == 'signature':
+            # Showing Train Results
+            train_jaccard21 = batch_jaccard21 / num_sample
+            train_jaccard6 = batch_jaccard6 / num_sample
+            if self.scalar_writer:
+                self.scalar_writer.add_scalar('train_jaccard21', train_jaccard21, self.global_step)
+                self.scalar_writer.add_scalar('train_jaccard6', train_jaccard6, self.global_step)
+            logging.info('Epoch: {}/{}, Training jaccard index: 21 regions - {:.2%}, 6 regions - {:.2%} Training time: {:.2f}s'.format(
+                epoch + 1, self.max_epoch, train_jaccard21, train_jaccard6, timer['total']
+            ))
         logging.info('Dataloader: {:.2f}s({:.1f}%), Network: {:.2f}s({:.1f}%), Statistics: {:.2f}s({:.1f}%)'.format(
             timer['dataloader'], timer['dataloader'] / timer['total'] * 100, timer['model'], timer['model'] / timer['total'] * 100,
             timer['statistics'], timer['statistics'] / timer['total'] * 100
@@ -87,65 +123,108 @@ class Processor(Initializer):
             buffer_perclass = [(torch.ones(self.eval_batch_size) * i).to(self.device) for i in range(self.num_class)]
             num_top1_perclass, num_sample_perclass = torch.zeros(self.num_class), torch.zeros(self.num_class)
             cm = np.zeros((self.num_class, self.num_class))
+            batch_jaccard21, class_counts21 = 0, torch.zeros(21 * 21, dtype=torch.int64)
+            batch_jaccard6, class_counts6 = 0, torch.zeros(6 * 6, dtype=torch.int64)
             eval_iter = self.eval_loader if self.no_progress_bar else tqdm(self.eval_loader, dynamic_ncols=True)
             for num, (x, y) in enumerate(eval_iter):
 
                 # Using GPU
                 x = x.float().to(self.device)
-                y = y.long().to(self.device)
+                if self.args.dataset_args['subset'] == 'binary':
+                    y = y.long().to(self.device)
+                elif self.args.dataset_args['subset'] == 'signature':
+                    y21 = y[0].long().to(self.device)
+                    y6 = y[1].long().to(self.device)
 
                 # Calculating Output
                 out, _ = self.model(x)
 
                 # Getting Loss
-                loss = self.loss_func(out, y)
+                if self.args.dataset_args['subset'] == 'binary':
+                    loss = self.loss_func(out, y.float())
+                elif self.args.dataset_args['subset'] == 'signature':
+                    out21, out6 = out
+                    loss1 = self.loss_func(out21, y21.float())
+                    loss2 = self.loss_func(out6, y6.float())
+                    loss = loss1 + loss2
                 eval_loss.append(loss.item())
 
                 if save_score:
                     for n, c in zip("", out.detach().cpu().numpy()):
                         score[n] = c
 
-                # Calculating Recognition Accuracies
                 num_sample += x.size(0)
-                reco_top1 = out.max(1)[1]
-                num_top1 += reco_top1.eq(y).sum().item()
+                if self.args.dataset_args['subset'] == 'binary':
+                    # Calculating Recognition Accuracies
+                    reco_top1 = out.max(1)[1]
+                    num_top1 += reco_top1.eq(y).sum().item()
 
-                # Calculating Balanced Accuracy
-                for i in range(self.num_class):
-                    num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
-                    num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
+                    # Calculating Balanced Accuracy
+                    for i in range(self.num_class):
+                        num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
+                        num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
 
-                # Calculating Confusion Matrix
-                for i in range(x.size(0)):
-                    cm[y[i], reco_top1[i]] += 1
+                    # Calculating Confusion Matrix
+                    for i in range(x.size(0)):
+                        cm[y[i], reco_top1[i]] += 1
+                elif self.args.dataset_args['subset'] == 'signature':
+                    # Calculating Jaccard Index
+                    preds = torch.sigmoid(out21.detach().cpu()) > self.multilabel_thresh
+                    batch_jaccard21 += jaccard_score(y21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    class_counts21 += y21.sum(axis=0).detach().cpu()
+                    logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21}")
+
+                    preds = torch.sigmoid(out6.detach().cpu()) > self.multilabel_thresh
+                    batch_jaccard6 += jaccard_score(y6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    class_counts6 += y6.sum(axis=0).detach().cpu()
+                    logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6}")
 
                 # Showing Progress
                 if self.no_progress_bar and self.args.evaluate:
                     logging.info('Batch: {}/{}'.format(num + 1, len(self.eval_loader)))
 
         # Showing Evaluating Results
-        acc_top1 = num_top1 / num_sample
-        bacc_top1 = float(np.average(num_top1_perclass / num_sample_perclass))
         eval_loss = sum(eval_loss) / len(eval_loss)
         eval_time = time() - start_eval_time
         eval_speed = len(self.eval_loader) * self.eval_batch_size / eval_time / len(self.args.gpus)
-        logging.info('Top-1 accuracy: {:d}/{:d}({:.2f}), Balanced accuracy: {:.2f},Mean loss:{:.4f}'.format(
-            num_top1, num_sample, acc_top1, bacc_top1, eval_loss
-        ))
+
+        if self.args.dataset_args['subset'] == 'binary':
+            acc_top1 = num_top1 / num_sample
+            bacc_top1 = float(np.average(num_top1_perclass / num_sample_perclass))
+            logging.info('Top-1 accuracy: {:d}/{:d}({:.2f}), Balanced accuracy: {:.2f},Mean loss:{:.4f}'.format(
+                num_top1, num_sample, acc_top1, bacc_top1, eval_loss
+            ))
+            if self.scalar_writer:
+                self.scalar_writer.add_scalar('eval_acc', acc_top1, self.global_step)
+                self.scalar_writer.add_scalar('eval_bacc', bacc_top1, self.global_step)
+        elif self.args.dataset_args['subset'] == 'signature':
+            test_jaccard21 = batch_jaccard21 / num_sample
+            test_jaccard6 = batch_jaccard6 / num_sample
+            logging.info('Test Jaccard index: 21 regions - {:.2f}, 6 regions - {:.2f}, Mean loss:{:.4f}'.format(
+                test_jaccard21, test_jaccard6, eval_loss
+            ))
+            if self.scalar_writer:
+                self.scalar_writer.add_scalar('eval_jaccard21', test_jaccard21, self.global_step)
+                self.scalar_writer.add_scalar('eval_jaccard6', test_jaccard6, self.global_step)
         logging.info('Evaluating time: {:.2f}s, Speed: {:.2f} sequnces/(second*GPU)'.format(
             eval_time, eval_speed
         ))
         logging.info('')
         if self.scalar_writer:
-            self.scalar_writer.add_scalar('eval_acc', acc_top1, self.global_step)
-            self.scalar_writer.add_scalar('eval_bacc', bacc_top1, self.global_step)
             self.scalar_writer.add_scalar('eval_loss', eval_loss, self.global_step)
 
         torch.cuda.empty_cache()
-        if save_score:
-            return bacc_top1, acc_top1, score
-        else:
-            return bacc_top1, acc_top1, cm
+
+        if self.args.dataset_args['subset'] == 'binary':
+            if save_score:
+                return bacc_top1, acc_top1, score
+            else:
+                return bacc_top1, acc_top1, cm
+        elif self.args.dataset_args['subset'] == 'signature':
+            if save_score:
+                return test_jaccard21, test_jaccard6, score
+            else:
+                return test_jaccard21, test_jaccard6, cm
 
     def start(self):
         start_time = time()
@@ -170,7 +249,7 @@ class Processor(Initializer):
         else:
             # Resuming
             start_epoch = 0
-            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'best_epoch': 0}
+            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'jaccard21': 0, 'jaccard6': 0, 'best_epoch': 0}
             if self.args.resume:
                 logging.info('Loading checkpoint ...')
                 checkpoint = U.load_checkpoint(self.args.work_dir)
@@ -181,8 +260,11 @@ class Processor(Initializer):
                 best_state.update(checkpoint['best_state'])
                 self.global_step = start_epoch * len(self.train_loader)
                 logging.info('Start epoch: {}'.format(start_epoch + 1))
-                logging.info('Best balanced accuracy: {:.2%}'.format(best_state['bacc_top1']))
-                logging.info('accuracy: {:.2%}'.format(best_state['acc_top1']))
+                if self.args.dataset_args['subset'] == 'binary':
+                    logging.info('Best balanced accuracy: {:.2%}'.format(best_state['bacc_top1']))
+                    logging.info('accuracy: {:.2%}'.format(best_state['acc_top1']))
+                elif self.args.dataset_args['subset'] == 'signature':
+                    logging.info('Best jaccard index: {:.2%}'.format(best_state['jaccard6']))
                 logging.info('Successful!')
                 logging.info('')
 
@@ -197,10 +279,17 @@ class Processor(Initializer):
                 is_best = False
                 if (epoch + 1) % self.eval_interval(epoch) == 0:
                     logging.info('Evaluating for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
-                    bacc_top1, acc_top1, cm = self.eval()
-                    if bacc_top1 > best_state['bacc_top1']:
-                        is_best = True
-                        best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
+
+                    if self.args.dataset_args['subset'] == 'binary':
+                        bacc_top1, acc_top1, cm = self.eval()
+                        if bacc_top1 > best_state['bacc_top1']:
+                            is_best = True
+                            best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
+                    elif self.args.dataset_args['subset'] == 'signature':
+                        jaccard21, jaccard6, cm = self.eval()
+                        if jaccard6 > best_state['jaccard6']:
+                            is_best = True
+                            best_state.update({'jaccard21': jaccard21, 'jaccard6': jaccard6, 'cm': cm, 'best_epoch': epoch + 1})
 
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
@@ -208,11 +297,18 @@ class Processor(Initializer):
                     self.model.module.state_dict(), self.optimizer.state_dict(), self.scheduler.state_dict(),
                     epoch + 1, best_state, is_best, self.args.work_dir, self.save_dir, self.model_name
                 )
-                logging.info('Best balanced accuracy (accuracy): {:.2%} ({:.2%})@{}th epoch, Total time: {}'.format(
-                    best_state['bacc_top1'], best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
-                ))
+                if self.args.dataset_args['subset'] == 'binary':
+                    logging.info('Best balanced accuracy (accuracy): {:.2%} ({:.2%})@{}th epoch, Total time: {}'.format(
+                        best_state['bacc_top1'], best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
+                    ))
+                elif self.args.dataset_args['subset'] == 'signature':
+                    logging.info('Best jaccard index: 6 regions {:.2%} @{}th epoch, Total time: {}'.format(
+                        best_state['jaccard6'], best_state['best_epoch'], U.get_time(time() - start_time)
+                    ))
                 logging.info('')
-            np.savetxt('{}/cm.csv'.format(self.save_dir), cm, fmt="%s", delimiter=",")
+
+            if self.args.dataset_args['subset'] == 'binary':
+                np.savetxt('{}/cm.csv'.format(self.save_dir), cm, fmt="%s", delimiter=",")
             logging.info('Finish training!')
             logging.info('')
 

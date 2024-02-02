@@ -1,4 +1,11 @@
-import os, yaml, thop, warnings, logging, pynvml, torch, numpy as np
+import os
+import yaml
+import thop
+import warnings
+import logging
+import pynvml
+import torch
+import numpy as np
 from copy import deepcopy
 from torch.optim.lr_scheduler import LambdaLR
 from tensorboardX import SummaryWriter
@@ -108,6 +115,7 @@ class Initializer:
         logging.info('Number of action classes: {}'.format(self.num_class))
 
     def init_model(self):
+        self.multilabel_thresh = 0.1
         kwargs = {
             'data_shape': self.data_shape,
             'num_class': self.num_class,
