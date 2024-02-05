@@ -16,10 +16,10 @@ class Youth(CustomDataset):
             self.prepare_sets(path, annot_file_name)
         elif subset == 'signature':
             self.prepare_folds(path, annot_file_name, "all_signature.json")
-        super().__init__(phase, path, annot_file_name, subset)
+        super().__init__(phase, path, annot_file_name, subset, **kwargs)
 
     def prepare_folds(self, path, data_file_name, annot_file_name):
-        if os.path.exists(os.path.join(path, 'fold1')):
+        if os.path.exists(os.path.join(path, 'fold0')):
             return
         logging.info(f'Preparing folds for the YOUth contact signature dataset.')
         with open(os.path.join(path, 'all', 'folds.json')) as f:

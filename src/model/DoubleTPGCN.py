@@ -125,7 +125,8 @@ class DoubleTPGCN(nn.Module):
 
     @staticmethod
     def create(_, block_structure, att_type, reduction='r1', **kwargs):
-        structure = {'structure': [1, 2, 3, 3], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
+        # structure = {'structure': [1, 2, 3, 3], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
+        structure = {'structure': [1, 2, 2, 2], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
         __reduction = {
             'r1': {'reduction': 1},
             'r2': {'reduction': 2},

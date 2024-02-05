@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 class CustomDataset(Dataset):
 
     def __init__(self, phase, root_folder, annot_file_name, subset='binary', fold='fold0', **kwargs):
+        print(fold)
         self.subset = subset
         if subset == 'signature':
             root_folder = os.path.join(root_folder, fold)

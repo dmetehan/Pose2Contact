@@ -18,6 +18,7 @@ class Processor(Initializer):
         batch_jaccard21, class_counts21 = 0, torch.zeros(21*21, dtype=int)
         batch_jaccard6, class_counts6 = 0, torch.zeros(6*6, dtype=int)
         train_iter = self.train_loader if self.no_progress_bar else tqdm(self.train_loader, dynamic_ncols=True)
+        all_preds6, all_labels6 = [], []
         for num, (x, y) in enumerate(train_iter):
             self.optimizer.zero_grad()
 
@@ -28,6 +29,7 @@ class Processor(Initializer):
             elif self.args.dataset_args['subset'] == 'signature':
                 y21 = y[0].long().to(self.device)
                 y6 = y[1].long().to(self.device)
+                all_labels6 += list(y6.detach().cpu())
             timer['dataloader'] += time() - timer['curr_time']
             timer['curr_time'] = time()
 
@@ -39,6 +41,7 @@ class Processor(Initializer):
                 loss = self.loss_func(out, y.float())
             elif self.args.dataset_args['subset'] == 'signature':
                 out21, out6 = out
+                all_preds6 += list(out6.detach().cpu())
                 loss1 = self.loss_func(out21, y21.float())
                 loss2 = self.loss_func(out6, y6.float())
                 loss = loss1 + loss2

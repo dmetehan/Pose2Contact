@@ -9,3 +9,4 @@ tqdm
 pynvml
 torch
 pandas
+scikit-learn
