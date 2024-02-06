@@ -15,10 +15,11 @@ class Processor(Initializer):
         timer = dict(start_time=time(), curr_time=time(), end_time=time(), dataloader=0.001, model=0.001, statistics=0.001)
         buffer_perclass = [(torch.ones(self.train_batch_size) * i).to(self.device) for i in range(self.num_class)]
         num_top1, num_sample, num_top1_perclass, num_sample_perclass = 0, 0, torch.zeros(self.num_class), torch.zeros(self.num_class)
-        batch_jaccard21, class_counts21 = 0, torch.zeros(21*21, dtype=int)
-        batch_jaccard6, class_counts6 = 0, torch.zeros(6*6, dtype=int)
+        pred_scores21x21, pred_scores6x6 = [], []
+        all_labels21x21, all_labels6x6 = [], []
+        batch_jaccard21x21, class_counts21x21 = 0, torch.zeros(21*21, dtype=torch.int32)
+        batch_jaccard6x6, class_counts6x6 = 0, torch.zeros(6*6, dtype=torch.int32)
         train_iter = self.train_loader if self.no_progress_bar else tqdm(self.train_loader, dynamic_ncols=True)
-        all_preds6, all_labels6 = [], []
         for num, (x, y) in enumerate(train_iter):
             self.optimizer.zero_grad()
 
@@ -27,9 +28,12 @@ class Processor(Initializer):
             if self.args.dataset_args['subset'] == 'binary':
                 y = y.long().to(self.device)
             elif self.args.dataset_args['subset'] == 'signature':
-                y21 = y[0].long().to(self.device)
-                y6 = y[1].long().to(self.device)
-                all_labels6 += list(y6.detach().cpu())
+                y42 = y[0].long().to(self.device)
+                y12 = y[1].long().to(self.device)
+                y21x21 = y[2].long().to(self.device)
+                y6x6 = y[3].long().to(self.device)
+                all_labels21x21 += y21x21.detach().cpu().tolist()
+                all_labels6x6 += y6x6.detach().cpu().tolist()
             timer['dataloader'] += time() - timer['curr_time']
             timer['curr_time'] = time()
 
@@ -40,11 +44,12 @@ class Processor(Initializer):
             if self.args.dataset_args['subset'] == 'binary':
                 loss = self.loss_func(out, y.float())
             elif self.args.dataset_args['subset'] == 'signature':
-                out21, out6 = out
-                all_preds6 += list(out6.detach().cpu())
-                loss1 = self.loss_func(out21, y21.float())
-                loss2 = self.loss_func(out6, y6.float())
-                loss = loss1 + loss2
+                out42, out12, out21x21, out6x6 = out
+                loss1 = self.loss_func(out42, y42.float())
+                loss2 = self.loss_func(out12, y12.float())
+                loss3 = self.loss_func(out21x21, y21x21.float())
+                loss4 = self.loss_func(out6x6, y6x6.float())
+                loss = loss1 + loss2 + loss3 + loss4
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
@@ -64,16 +69,18 @@ class Processor(Initializer):
                     num_top1_perclass[i] += (reco_top1.eq(buffer_perclass[i][:len(reco_top1)]) & (y.eq(buffer_perclass[i][:len(reco_top1)]))).sum().item()
                     num_sample_perclass[i] += y.eq(buffer_perclass[i][:len(y)]).sum().item()
             elif self.args.dataset_args['subset'] == 'signature':
+                pred_scores21x21 += torch.sigmoid(out21x21.detach().cpu()).tolist()
+                pred_scores6x6 += torch.sigmoid(out6x6.detach().cpu()).tolist()
                 # Calculating Jaccard Index
-                preds = torch.sigmoid(out21.detach().cpu()) > self.multilabel_thresh
-                batch_jaccard21 += jaccard_score(y21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
-                class_counts21 += y21.sum(axis=0).detach().cpu()
-                logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21}")
+                preds = torch.sigmoid(out21x21.detach().cpu()) > self.multilabel_thresh
+                batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                class_counts21x21 += y21x21.sum(axis=0).detach().cpu()
+                logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21x21}")
 
-                preds = torch.sigmoid(out6.detach().cpu()) > self.multilabel_thresh
-                batch_jaccard6 += jaccard_score(y6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
-                class_counts6 += y6.sum(axis=0).detach().cpu()
-                logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6}")
+                preds = torch.sigmoid(out6x6.detach().cpu()) > self.multilabel_thresh
+                batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                class_counts6x6 += y6x6.sum(axis=0).detach().cpu()
+                logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6x6}")
 
             # Showing Progress
             lr = self.optimizer.param_groups[0]['lr']
@@ -101,9 +108,12 @@ class Processor(Initializer):
                 epoch + 1, self.max_epoch, num_top1, num_sample, train_acc, train_bacc, timer['total']
             ))
         elif self.args.dataset_args['subset'] == 'signature':
+            # Visualize thresholding graphs
+            # TODO: visualize.vis_threshold_jaccard()
+            
             # Showing Train Results
-            train_jaccard21 = batch_jaccard21 / num_sample
-            train_jaccard6 = batch_jaccard6 / num_sample
+            train_jaccard21 = batch_jaccard21x21 / num_sample
+            train_jaccard6 = batch_jaccard6x6 / num_sample
             if self.scalar_writer:
                 self.scalar_writer.add_scalar('train_jaccard21', train_jaccard21, self.global_step)
                 self.scalar_writer.add_scalar('train_jaccard6', train_jaccard6, self.global_step)
@@ -126,8 +136,8 @@ class Processor(Initializer):
             buffer_perclass = [(torch.ones(self.eval_batch_size) * i).to(self.device) for i in range(self.num_class)]
             num_top1_perclass, num_sample_perclass = torch.zeros(self.num_class), torch.zeros(self.num_class)
             cm = np.zeros((self.num_class, self.num_class))
-            batch_jaccard21, class_counts21 = 0, torch.zeros(21 * 21, dtype=torch.int64)
-            batch_jaccard6, class_counts6 = 0, torch.zeros(6 * 6, dtype=torch.int64)
+            batch_jaccard21x21, class_counts21x21 = 0, torch.zeros(21 * 21, dtype=torch.int64)
+            batch_jaccard6x6, class_counts6x6 = 0, torch.zeros(6 * 6, dtype=torch.int64)
             eval_iter = self.eval_loader if self.no_progress_bar else tqdm(self.eval_loader, dynamic_ncols=True)
             for num, (x, y) in enumerate(eval_iter):
 
@@ -136,8 +146,10 @@ class Processor(Initializer):
                 if self.args.dataset_args['subset'] == 'binary':
                     y = y.long().to(self.device)
                 elif self.args.dataset_args['subset'] == 'signature':
-                    y21 = y[0].long().to(self.device)
-                    y6 = y[1].long().to(self.device)
+                    y42 = y[0].long().to(self.device)
+                    y12 = y[1].long().to(self.device)
+                    y21x21 = y[2].long().to(self.device)
+                    y6x6 = y[3].long().to(self.device)
 
                 # Calculating Output
                 out, _ = self.model(x)
@@ -146,10 +158,12 @@ class Processor(Initializer):
                 if self.args.dataset_args['subset'] == 'binary':
                     loss = self.loss_func(out, y.float())
                 elif self.args.dataset_args['subset'] == 'signature':
-                    out21, out6 = out
-                    loss1 = self.loss_func(out21, y21.float())
-                    loss2 = self.loss_func(out6, y6.float())
-                    loss = loss1 + loss2
+                    out42, out12, out21x21, out6x6 = out
+                    loss1 = self.loss_func(out42, y42.float())
+                    loss2 = self.loss_func(out12, y12.float())
+                    loss3 = self.loss_func(out21x21, y21x21.float())
+                    loss4 = self.loss_func(out6x6, y6x6.float())
+                    loss = loss1 + loss2 + loss3 + loss4
                 eval_loss.append(loss.item())
 
                 if save_score:
@@ -172,15 +186,15 @@ class Processor(Initializer):
                         cm[y[i], reco_top1[i]] += 1
                 elif self.args.dataset_args['subset'] == 'signature':
                     # Calculating Jaccard Index
-                    preds = torch.sigmoid(out21.detach().cpu()) > self.multilabel_thresh
-                    batch_jaccard21 += jaccard_score(y21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
-                    class_counts21 += y21.sum(axis=0).detach().cpu()
-                    logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21}")
+                    preds = torch.sigmoid(out21x21.detach().cpu()) > self.multilabel_thresh
+                    batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    class_counts21x21 += y21x21.sum(axis=0).detach().cpu()
+                    logging.debug(f"Batch jaccard 21 regions: {batch_jaccard21x21}")
 
-                    preds = torch.sigmoid(out6.detach().cpu()) > self.multilabel_thresh
-                    batch_jaccard6 += jaccard_score(y6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
-                    class_counts6 += y6.sum(axis=0).detach().cpu()
-                    logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6}")
+                    preds = torch.sigmoid(out6x6.detach().cpu()) > self.multilabel_thresh
+                    batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    class_counts6x6 += y6x6.sum(axis=0).detach().cpu()
+                    logging.debug(f"Batch jaccard 6 regions: {batch_jaccard6x6}")
 
                 # Showing Progress
                 if self.no_progress_bar and self.args.evaluate:
@@ -201,8 +215,8 @@ class Processor(Initializer):
                 self.scalar_writer.add_scalar('eval_acc', acc_top1, self.global_step)
                 self.scalar_writer.add_scalar('eval_bacc', bacc_top1, self.global_step)
         elif self.args.dataset_args['subset'] == 'signature':
-            test_jaccard21 = batch_jaccard21 / num_sample
-            test_jaccard6 = batch_jaccard6 / num_sample
+            test_jaccard21 = batch_jaccard21x21 / num_sample
+            test_jaccard6 = batch_jaccard6x6 / num_sample
             logging.info('Test Jaccard index: 21 regions - {:.2f}, 6 regions - {:.2f}, Mean loss:{:.4f}'.format(
                 test_jaccard21, test_jaccard6, eval_loss
             ))

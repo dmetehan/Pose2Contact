@@ -49,11 +49,15 @@ class DoubleTPGCN(nn.Module):
         self.child_gpooling = nn.AdaptiveAvgPool2d(1)
         self.child_fcn21 = nn.Linear(256, 21)
         self.child_fcn6 = nn.Linear(256, 6)
+        self.child_fcn21x21 = nn.Linear(256, 21)
+        self.child_fcn6x6 = nn.Linear(256, 6)
 
         # output adult
         self.adult_gpooling = nn.AdaptiveAvgPool2d(1)
         self.adult_fcn21 = nn.Linear(256, 21)
         self.adult_fcn6 = nn.Linear(256, 6)
+        self.adult_fcn21x21 = nn.Linear(256, 21)
+        self.adult_fcn6x6 = nn.Linear(256, 6)
 
         # init parameters
         init_param(self.modules())
@@ -78,11 +82,11 @@ class DoubleTPGCN(nn.Module):
 
         xadult = x
         xchild = x
-        # main stream
+        # adult stream
         for layer in self.adult_stream:
             xadult = layer(xadult)
 
-        # main stream
+        # child stream
         for layer in self.child_stream:
             xchild = layer(xchild)
 
@@ -95,6 +99,8 @@ class DoubleTPGCN(nn.Module):
         xchild = xchild.view(N, M, -1).mean(dim=1)
         xchild21 = self.child_fcn21(xchild)
         xchild6 = self.child_fcn6(xchild)
+        xchild21x21 = self.child_fcn21x21(xchild)
+        xchild6x6 = self.child_fcn6x6(xchild)
 
         # extract feature
         _, C, T, V = xadult.size()
@@ -105,15 +111,20 @@ class DoubleTPGCN(nn.Module):
         xadult = xadult.view(N, M, -1).mean(dim=1)
         xadult21 = self.adult_fcn21(xadult)
         xadult6 = self.adult_fcn6(xadult)
+        xadult21x21 = self.adult_fcn21x21(xadult)
+        xadult6x6 = self.adult_fcn6x6(xadult)
 
         logging.debug(f"shape of the xchild is {xchild.shape}")
 
-        # xchild * xadult.T
-        x21 = torch.bmm(xchild21.view(-1, 21, 1), xadult21.view(-1, 1, 21))
-        x21 = torch.reshape(x21, (-1, 21*21))
+        # xadult * xchild.T
+        x21x21 = torch.bmm(xadult21x21.view(-1, 21, 1), xchild21x21.view(-1, 1, 21))
+        x21x21 = torch.reshape(x21x21, (-1, 21*21))
 
-        x6 = torch.bmm(xchild6.view(-1, 6, 1), xadult6.view(-1, 1, 6))
-        x6 = torch.reshape(x6, (-1, 6*6))
+        x6x6 = torch.bmm(xchild6x6.view(-1, 6, 1), xadult6x6.view(-1, 1, 6))
+        x6x6 = torch.reshape(x6x6, (-1, 6*6))
+
+        x42 = torch.cat((xadult21, xchild21), dim=1)
+        x12 = torch.cat((xadult6, xchild6), dim=1)
 
         logging.debug(f"shape of the output is {x.shape}")
 
@@ -121,7 +132,7 @@ class DoubleTPGCN(nn.Module):
 
         logging.debug(f"shape of the feature is {feature.shape}")
 
-        return (x21, x6), feature
+        return (x42, x12, x21x21, x6x6), feature
 
     @staticmethod
     def create(_, block_structure, att_type, reduction='r1', **kwargs):

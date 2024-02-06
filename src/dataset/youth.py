@@ -44,10 +44,14 @@ class Youth(CustomDataset):
 
                     def add_signature(x):
                         subj, frame = x['crop_path'].split('/')[-2:]
-                        x['signature21'] = [(elem['adult'], elem['child'])
-                                            for elem in annots[subj][frame]]
-                        x['signature6'] = [(reg_mapper(elem['adult']), reg_mapper(elem['child']))
-                                           for elem in annots[subj][frame]]
+                        x['seg21_adult'] = [elem['adult'] for elem in annots[subj][frame]]
+                        x['seg21_child'] = [elem['child'] for elem in annots[subj][frame]]
+                        x['seg6_adult'] = [reg_mapper(elem['adult']) for elem in annots[subj][frame]]
+                        x['seg6_child'] = [reg_mapper(elem['child']) for elem in annots[subj][frame]]
+                        x['signature21x21'] = [(elem['adult'], elem['child'])
+                                               for elem in annots[subj][frame]]
+                        x['signature6x6'] = [(reg_mapper(elem['adult']), reg_mapper(elem['child']))
+                                             for elem in annots[subj][frame]]
                         return x
 
                     data_subset = data_subset.apply(add_signature, axis=1)

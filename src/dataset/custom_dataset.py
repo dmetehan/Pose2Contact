@@ -35,8 +35,19 @@ class CustomDataset(Dataset):
             self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
         elif self.subset == 'signature':
             self.data = [(np.array(self.data[d]['preds']),
-                          (self.onehot_sig(self.data[d]['signature21'], res=21),
-                           self.onehot_sig(self.data[d]['signature6'], res=6))) for d in range(len(self.data))]
+                          (self.onehot_segmentation(self.data[d]['seg21_adult'], self.data[d]['seg21_child'], res=21),
+                           self.onehot_segmentation(self.data[d]['seg6_adult'], self.data[d]['seg6_child'], res=6),
+                           self.onehot_sig(self.data[d]['signature21x21'], res=21),
+                           self.onehot_sig(self.data[d]['signature6x6'], res=6))) for d in range(len(self.data))]
+
+    @staticmethod
+    def onehot_segmentation(adult_seg, child_seg, res=21):
+        mat = torch.zeros(res + res, dtype=torch.int8)
+        for adult in adult_seg:
+            mat[adult] = 1
+        for child in child_seg:
+            mat[res + child] = 1
+        return mat.flatten()
 
     @staticmethod
     def onehot_sig(signature, res=21):

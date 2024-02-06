@@ -15,6 +15,7 @@ from . import utils as U
 from . import dataset
 from . import model
 from . import scheduler
+from .model.custom_loss import IoULoss, DiceBCELoss
 
 
 class Initializer:
@@ -163,8 +164,8 @@ class Initializer:
         logging.info('LR_Scheduler: {} {}'.format(self.args.lr_scheduler, scheduler_args))
 
     def init_loss_func(self):
-        logging.info(f"Initializing loss function with class weights: {self.class_weights}")
-        class_weights = torch.FloatTensor(self.class_weights).to(self.device)
-        #TODO: Add class weights
-        self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
+        logging.info(f"Initializing loss function")
+        # self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
+        # self.loss_func = IoULoss().to(self.device)
+        self.loss_func = DiceBCELoss().to(self.device)  # best training loss
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))
