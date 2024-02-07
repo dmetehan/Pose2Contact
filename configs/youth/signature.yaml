@@ -17,8 +17,8 @@ dataset_args:
   graph: mutual
   labeling: spatial
   processing: symmetry
-  train_batch_size: 64
-  eval_batch_size: 64
+  train_batch_size: 32
+  eval_batch_size: 32
   num_frame: 1
   transform: False
   crop: True

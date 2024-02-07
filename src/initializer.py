@@ -15,7 +15,7 @@ from . import utils as U
 from . import dataset
 from . import model
 from . import scheduler
-from .model.custom_loss import IoULoss, DiceBCELoss
+from .model.custom_loss import IoULoss, DiceBCELoss, IoUBCELoss
 
 
 class Initializer:
@@ -116,7 +116,8 @@ class Initializer:
         logging.info('Number of action classes: {}'.format(self.num_class))
 
     def init_model(self):
-        self.multilabel_thresh = 0.1
+        # TODO: Write multilabel threshold to the output files
+        self.multilabel_thresh = {'42': 0.375, '12': 0.5, '21x21': 0.125, '6x6': 0.25}
         kwargs = {
             'data_shape': self.data_shape,
             'num_class': self.num_class,
@@ -167,5 +168,6 @@ class Initializer:
         logging.info(f"Initializing loss function")
         # self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
         # self.loss_func = IoULoss().to(self.device)
-        self.loss_func = DiceBCELoss().to(self.device)  # best training loss
+        # self.loss_func = DiceBCELoss().to(self.device)  # best training loss
+        self.loss_func = IoUBCELoss().to(self.device)  # best training loss
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))
