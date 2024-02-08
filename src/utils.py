@@ -24,14 +24,15 @@ def get_current_timestamp():
     return '[ {},{:0>3d} ] '.format(strftime('%Y-%m-%d %H:%M:%S', localtime(ct)), ms)
 
 
-def load_checkpoint(work_dir, model_name='resume'):
+def load_checkpoint(work_dir, model_name='resume', subset='binary'):
     if model_name == 'resume':
         file_name = '{}/checkpoint.pth.tar'.format(work_dir)
     elif model_name == 'debug':
         file_name = '{}/temp/debug.pth.tar'.format(work_dir)
     else:
         dirs, accs = {}, {}
-        work_dir = '{}/{}'.format(work_dir, model_name)
+        # work_dir = '{}/{}'.format(work_dir, model_name)
+        logging.info(f"work_dir: {work_dir}")
         if os.path.exists(work_dir):
             for i, dir_time in enumerate(os.listdir(work_dir)):
                 if os.path.isdir('{}/{}'.format(work_dir, dir_time)):
@@ -39,7 +40,7 @@ def load_checkpoint(work_dir, model_name='resume'):
                     if os.path.exists(state_file):
                         with open(state_file, 'r') as f:
                             best_state = json.load(f)
-                        accs[str(i + 1)] = best_state['acc_top1']
+                        accs[str(i + 1)] = best_state['acc_top1' if subset == 'binary' else 'jaccard42']
                         dirs[str(i + 1)] = dir_time
         if len(dirs) == 0:
             logging.warning('Warning: Do NOT exists any model in workdir!')

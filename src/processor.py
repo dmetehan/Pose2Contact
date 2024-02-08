@@ -8,6 +8,7 @@ from time import time
 from . import utils as U
 from .initializer import Initializer
 from . import visualize
+from .model.baseline import get_baseline_predictors, predict_with_predictors
 
 
 class Processor(Initializer):
@@ -146,10 +147,26 @@ class Processor(Initializer):
         ))
         logging.info('')
 
+    def get_all_train_labels(self):
+        all_labels42, all_labels12, all_labels21x21, all_labels6x6 = [], [], [], []
+        for num, (x, y) in enumerate(self.train_loader):
+                y42 = y[0].long().to(self.device)
+                y12 = y[1].long().to(self.device)
+                y21x21 = y[2].long().to(self.device)
+                y6x6 = y[3].long().to(self.device)
+                all_labels42 += y42.detach().cpu().tolist()
+                all_labels12 += y12.detach().cpu().tolist()
+                all_labels21x21 += y21x21.detach().cpu().tolist()
+                all_labels6x6 += y6x6.detach().cpu().tolist()
+        return {'42': all_labels42, '12': all_labels12, '21x21': all_labels21x21, '6x6': all_labels6x6}
+
     def eval(self, epoch=None, save_score=False):
         self.model.eval()
         start_eval_time = time()
         score = {}
+        if epoch is None:
+            all_train_labels = self.get_all_train_labels()
+            all_baseline_clfs = get_baseline_predictors(all_train_labels)
         with torch.no_grad():
             num_top1 = 0
             num_sample, eval_loss = 0, []
@@ -252,12 +269,25 @@ class Processor(Initializer):
                 self.scalar_writer.add_scalar('eval_acc', acc_top1, self.global_step)
                 self.scalar_writer.add_scalar('eval_bacc', bacc_top1, self.global_step)
         elif self.args.dataset_args['subset'] == 'signature':
-            # Visualize thresholding graphs
+            all_eval_labels = {'42': all_labels42, '12': all_labels12, '21x21': all_labels21x21, '6x6': all_labels6x6}
             if epoch is not None:
-                all_labels = {'42': all_labels42, '12': all_labels12, '21x21': all_labels21x21, '6x6': all_labels6x6}
+                # Visualize thresholding graphs
                 pred_scores = {'42': pred_scores42, '12': pred_scores12, '21x21': pred_scores21x21, '6x6': pred_scores6x6}
                 kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'eval'), 'average': 'macro'}
-                visualize.vis_threshold_eval(all_labels, pred_scores, jaccard_score, **kwargs)
+                visualize.vis_threshold_eval(all_eval_labels, pred_scores, jaccard_score, **kwargs)
+            else:
+                kwargs = {'average': 'macro'}
+                all_baseline_results, best_baseline_results = predict_with_predictors(all_eval_labels, all_baseline_clfs, jaccard_score, **kwargs)
+
+                logging.info('Baseline Jaccard: 42: {:.2%} ({}), 12: {:.2%} ({}), 21x21: {:.2%} ({}), 6x6: {:.2%} ({}), Mean loss:{:.4f}'.format(
+                    best_baseline_results['42'][0], best_baseline_results['42'][1],
+                    best_baseline_results['12'][0], best_baseline_results['12'][1],
+                    best_baseline_results['21x21'][0], best_baseline_results['21x21'][1],
+                    best_baseline_results['6x6'][0], best_baseline_results['6x6'][1], eval_loss
+                ))
+                # Visualize prediction errors as heatmaps for 21 region segmentation predictions
+                preds42 = torch.Tensor(pred_scores42) > self.multilabel_thresh['42']
+                visualize.vis_pred_errors_heatmap(all_labels42, preds42, os.path.join(self.save_dir, 'prediction_errors'))
 
             test_jaccard42 = batch_jaccard42 / num_sample
             test_jaccard12 = batch_jaccard12 / num_sample
@@ -287,9 +317,9 @@ class Processor(Initializer):
                 return bacc_top1, acc_top1, cm
         elif self.args.dataset_args['subset'] == 'signature':
             if save_score:
-                return test_jaccard21x21, test_jaccard6x6, score
+                return test_jaccard42, test_jaccard12, score
             else:
-                return test_jaccard21x21, test_jaccard6x6, cm
+                return test_jaccard42, test_jaccard12, cm
 
     def start(self):
         start_time = time()
@@ -300,7 +330,7 @@ class Processor(Initializer):
 
             # Loading Evaluating Model
             logging.info('Loading evaluating model ...')
-            checkpoint = U.load_checkpoint(self.args.work_dir, self.model_name)
+            checkpoint = U.load_checkpoint(self.args.work_dir, self.model_name, self.args.dataset_args['subset'])
             if checkpoint:
                 self.model.module.load_state_dict(checkpoint['model'])
             logging.info('Successful!')
@@ -314,10 +344,10 @@ class Processor(Initializer):
         else:
             # Resuming
             start_epoch = 0
-            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'jaccard21': 0, 'jaccard6': 0, 'best_epoch': 0}
+            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'jaccard42': 0, 'jaccard12': 0, 'best_epoch': 0}
             if self.args.resume:
                 logging.info('Loading checkpoint ...')
-                checkpoint = U.load_checkpoint(self.args.work_dir)
+                checkpoint = U.load_checkpoint(self.args.work_dir, self.args.dataset_args.subset)
                 self.model.module.load_state_dict(checkpoint['model'])
                 self.optimizer.load_state_dict(checkpoint['optimizer'])
                 self.scheduler.load_state_dict(checkpoint['scheduler'])
@@ -329,7 +359,7 @@ class Processor(Initializer):
                     logging.info('Best balanced accuracy: {:.2%}'.format(best_state['bacc_top1']))
                     logging.info('accuracy: {:.2%}'.format(best_state['acc_top1']))
                 elif self.args.dataset_args['subset'] == 'signature':
-                    logging.info('Best jaccard index: {:.2%}'.format(best_state['jaccard6']))
+                    logging.info('Best jaccard index: {:.2%}'.format(best_state['jaccard12']))
                 logging.info('Successful!')
                 logging.info('')
 
@@ -351,10 +381,10 @@ class Processor(Initializer):
                             is_best = True
                             best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
                     elif self.args.dataset_args['subset'] == 'signature':
-                        jaccard21, jaccard6, cm = self.eval(epoch=epoch)
-                        if jaccard6 > best_state['jaccard6']:
+                        jaccard42, jaccard12, cm = self.eval(epoch=epoch)
+                        if jaccard42 > best_state['jaccard42']:
                             is_best = True
-                            best_state.update({'jaccard21': jaccard21, 'jaccard6': jaccard6, 'cm': cm, 'best_epoch': epoch + 1})
+                            best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12, 'cm': cm, 'best_epoch': epoch + 1})
 
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
@@ -367,8 +397,8 @@ class Processor(Initializer):
                         best_state['bacc_top1'], best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
                     ))
                 elif self.args.dataset_args['subset'] == 'signature':
-                    logging.info('Best jaccard index: 6 regions {:.2%} @{}th epoch, Total time: {}'.format(
-                        best_state['jaccard6'], best_state['best_epoch'], U.get_time(time() - start_time)
+                    logging.info('Best jaccard index: 42 regions {:.2%} @{}th epoch, Total time: {}'.format(
+                        best_state['jaccard42'], best_state['best_epoch'], U.get_time(time() - start_time)
                     ))
                 logging.info('')
 

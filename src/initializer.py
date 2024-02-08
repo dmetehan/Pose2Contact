@@ -117,7 +117,7 @@ class Initializer:
 
     def init_model(self):
         # TODO: Write multilabel threshold to the output files
-        self.multilabel_thresh = {'42': 0.375, '12': 0.5, '21x21': 0.125, '6x6': 0.25}
+        self.multilabel_thresh = {'42': 0.125, '12': 0.25, '21x21': 0.0625, '6x6': 0.125}
         kwargs = {
             'data_shape': self.data_shape,
             'num_class': self.num_class,
