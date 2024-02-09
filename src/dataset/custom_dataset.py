@@ -20,13 +20,6 @@ class CustomDataset(Dataset):
         self.fill_no_dets()
         # TODO: Add normalization of the coordinates to [0, 1]
         self.datashape = [2, 17, 3]
-        self.class_weights = self.calc_class_weights()
-
-    def calc_class_weights(self):
-        # TODO: Write class weights to config file?
-        # labels = [y for _, y in self.data]
-        return [1, 4]
-        # return [labels.count(1)/len(labels), labels.count(0)/len(labels)]  # reversed instance ratio
 
     def remove_ambiguous(self): self.data = [self.data[d] for d in range(len(self.data)) if self.data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
 

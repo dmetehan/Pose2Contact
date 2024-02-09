@@ -10,6 +10,7 @@ from copy import deepcopy
 from torch.optim.lr_scheduler import LambdaLR
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
+from torch.nn import MultiLabelSoftMarginLoss
 
 from . import utils as U
 from . import dataset
@@ -168,6 +169,6 @@ class Initializer:
         logging.info(f"Initializing loss function")
         # self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
         # self.loss_func = IoULoss().to(self.device)
-        # self.loss_func = DiceBCELoss().to(self.device)  # best training loss
-        self.loss_func = IoUBCELoss().to(self.device)  # best training loss
+        # self.loss_func = IoUBCELoss().to(self.device)  # best training loss
+        self.loss_func = MultiLabelSoftMarginLoss().to(self.device)
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))
