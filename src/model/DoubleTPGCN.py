@@ -120,7 +120,7 @@ class DoubleTPGCN(nn.Module):
         x21x21 = torch.bmm(xadult21x21.view(-1, 21, 1), xchild21x21.view(-1, 1, 21))
         x21x21 = torch.reshape(x21x21, (-1, 21*21))
 
-        x6x6 = torch.bmm(xchild6x6.view(-1, 6, 1), xadult6x6.view(-1, 1, 6))
+        x6x6 = torch.bmm(xadult6x6.view(-1, 6, 1), xchild6x6.view(-1, 1, 6))
         x6x6 = torch.reshape(x6x6, (-1, 6*6))
 
         x42 = torch.cat((xadult21, xchild21), dim=1)

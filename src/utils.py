@@ -40,8 +40,12 @@ def load_checkpoint(work_dir, model_name='resume', subset='binary'):
                     if os.path.exists(state_file):
                         with open(state_file, 'r') as f:
                             best_state = json.load(f)
-                        accs[str(i + 1)] = best_state['acc_top1' if subset == 'binary' else 'jaccard42']
-                        dirs[str(i + 1)] = dir_time
+                        try:
+                            accs[str(i + 1)] = best_state['acc_top1' if subset == 'binary' else 'jaccard42']
+                            dirs[str(i + 1)] = dir_time
+                        except KeyError:
+                            print(f"Key error on {dir_time}")
+                            continue
         if len(dirs) == 0:
             logging.warning('Warning: Do NOT exists any model in workdir!')
             logging.info('Evaluating initial or pretrained model.')

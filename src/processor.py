@@ -81,19 +81,19 @@ class Processor(Initializer):
 
                 # Calculating Jaccard Index
                 preds = torch.sigmoid(out42.detach().cpu()) > self.multilabel_thresh['42']
-                batch_jaccard42 += jaccard_score(y42.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                batch_jaccard42 += jaccard_score(y42.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                 logging.debug(f"Batch jaccard 42: {batch_jaccard42}")
 
                 preds = torch.sigmoid(out12.detach().cpu()) > self.multilabel_thresh['12']
-                batch_jaccard12 += jaccard_score(y12.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                batch_jaccard12 += jaccard_score(y12.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                 logging.debug(f"Batch jaccard 12: {batch_jaccard12}")
 
                 preds = torch.sigmoid(out21x21.detach().cpu()) > self.multilabel_thresh['21x21']
-                batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                 logging.debug(f"Batch jaccard 21x21: {batch_jaccard21x21}")
 
                 preds = torch.sigmoid(out6x6.detach().cpu()) > self.multilabel_thresh['6x6']
-                batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                 logging.debug(f"Batch jaccard 6x6: {batch_jaccard6x6}")
 
             # Showing Progress
@@ -125,7 +125,7 @@ class Processor(Initializer):
             # Visualize thresholding graphs
             all_labels = {'42': all_labels42, '12': all_labels12, '21x21': all_labels21x21, '6x6': all_labels6x6}
             pred_scores = {'42': pred_scores42, '12': pred_scores12, '21x21': pred_scores21x21, '6x6': pred_scores6x6}
-            kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'train'), 'average': 'macro'}
+            kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'train'), 'average': 'micro'}
             visualize.vis_threshold_eval(all_labels, pred_scores, jaccard_score, **kwargs)
             
             # Showing Train Results
@@ -235,19 +235,19 @@ class Processor(Initializer):
 
                     # Calculating Jaccard Index
                     preds = torch.sigmoid(out42.detach().cpu()) > self.multilabel_thresh['42']
-                    batch_jaccard42 += jaccard_score(y42.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    batch_jaccard42 += jaccard_score(y42.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                     logging.debug(f"Batch jaccard 42: {batch_jaccard42}")
 
                     preds = torch.sigmoid(out12.detach().cpu()) > self.multilabel_thresh['12']
-                    batch_jaccard12 += jaccard_score(y12.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    batch_jaccard12 += jaccard_score(y12.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                     logging.debug(f"Batch jaccard 12: {batch_jaccard12}")
 
                     preds = torch.sigmoid(out21x21.detach().cpu()) > self.multilabel_thresh['21x21']
-                    batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                     logging.debug(f"Batch jaccard 21x21: {batch_jaccard21x21}")
 
                     preds = torch.sigmoid(out6x6.detach().cpu()) > self.multilabel_thresh['6x6']
-                    batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='macro') * x.size(0)  # multiplying with batch size
+                    batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
                     logging.debug(f"Batch jaccard 6x6: {batch_jaccard6x6}")
 
                 # Showing Progress
@@ -273,10 +273,10 @@ class Processor(Initializer):
             if epoch is not None:
                 # Visualize thresholding graphs
                 pred_scores = {'42': pred_scores42, '12': pred_scores12, '21x21': pred_scores21x21, '6x6': pred_scores6x6}
-                kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'eval'), 'average': 'macro'}
+                kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'eval'), 'average': 'micro'}
                 visualize.vis_threshold_eval(all_eval_labels, pred_scores, jaccard_score, **kwargs)
             else:
-                kwargs = {'average': 'macro'}
+                kwargs = {'average': 'micro'}
                 all_baseline_results, best_baseline_results = predict_with_predictors(all_eval_labels, all_baseline_clfs, jaccard_score, **kwargs)
 
                 logging.info('Baseline Jaccard: 42: {:.2%} ({}), 12: {:.2%} ({}), 21x21: {:.2%} ({}), 6x6: {:.2%} ({}), Mean loss:{:.4f}'.format(
@@ -329,6 +329,8 @@ class Processor(Initializer):
                 logging.info('')
 
             # Loading Evaluating Model
+            print(self.args.work_dir)
+            print(self.model_name)
             logging.info('Loading evaluating model ...')
             checkpoint = U.load_checkpoint(self.args.work_dir, self.model_name, self.args.dataset_args['subset'])
             if checkpoint:

@@ -34,6 +34,5 @@ def create(dataset, subset, trainset, evalset, **kwargs):
         'eval': data_args['feeder'](phase=evalset, subset=subset, **kwargs),
     }
 
-    class_weights = feeders['train'].class_weights
     data_shape = feeders['train'].datashape
-    return feeders, data_shape, num_class, g.A, g.parts, class_weights
+    return feeders, data_shape, num_class, g.A, g.parts
