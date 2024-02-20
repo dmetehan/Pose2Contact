@@ -163,3 +163,10 @@ cython_debug/
 /data/youth/binary/all/pose_detections.json
 /data/
 /src/visualization/assets/
+/.idea/.gitignore
+/.idea/ContactSignature.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/vcs.xml
