@@ -162,3 +162,4 @@ cython_debug/
 #.idea/
 /data/youth/binary/all/pose_detections.json
 /data/
+/src/visualization/assets/

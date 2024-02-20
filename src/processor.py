@@ -7,7 +7,7 @@ from time import time
 
 from . import utils as U
 from .initializer import Initializer
-from . import visualize
+from .visualization import visualize
 from .model.baseline import get_baseline_predictors, predict_with_predictors
 
 
@@ -279,11 +279,11 @@ class Processor(Initializer):
                 kwargs = {'average': 'micro'}
                 all_baseline_results, best_baseline_results = predict_with_predictors(all_eval_labels, all_baseline_clfs, jaccard_score, **kwargs)
 
-                logging.info('Baseline Jaccard: 42: {:.2%} ({}), 12: {:.2%} ({}), 21x21: {:.2%} ({}), 6x6: {:.2%} ({}), Mean loss:{:.4f}'.format(
+                logging.info('Baseline Jaccard: 42: {:.2%} ({}), 12: {:.2%} ({}), 21x21: {:.2%} ({}), 6x6: {:.2%} ({})'.format(
                     best_baseline_results['42'][0], best_baseline_results['42'][1],
                     best_baseline_results['12'][0], best_baseline_results['12'][1],
                     best_baseline_results['21x21'][0], best_baseline_results['21x21'][1],
-                    best_baseline_results['6x6'][0], best_baseline_results['6x6'][1], eval_loss
+                    best_baseline_results['6x6'][0], best_baseline_results['6x6'][1]
                 ))
                 # Visualize prediction errors as heatmaps for 21 region segmentation predictions
                 preds42 = torch.Tensor(pred_scores42) > self.multilabel_thresh['42']

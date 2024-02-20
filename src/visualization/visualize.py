@@ -9,6 +9,7 @@ from matplotlib import ticker
 from matplotlib.colors import ListedColormap
 from sklearn import manifold, datasets
 from sklearn.decomposition import TruncatedSVD
+import plotly.express as px
 
 
 def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
@@ -72,11 +73,11 @@ def vis_pred_errors_heatmap(gts, preds, save_dir):
     # cv2.waitKey(0)
 
 
-def tsne_on_annotations(annots_matrix, labels, n_components=2):
+def tsne_on_annotations(annots_matrix, n_components=2):
     svd = TruncatedSVD(n_components=50, n_iter=50, random_state=42)
     svd.fit(annots_matrix)
     annots_matrix = svd.transform(annots_matrix)
-    for perplexity in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
+    for perplexity in [25]:
         print(perplexity)
         t_sne = manifold.TSNE(
             n_components=n_components,
@@ -86,8 +87,7 @@ def tsne_on_annotations(annots_matrix, labels, n_components=2):
             random_state=0
         )
         S_t_sne = t_sne.fit_transform(annots_matrix)
-
-        plot_2d(S_t_sne, labels, "T-distributed Stochastic  \n Neighbor Embedding")
+    return S_t_sne
 
 
 def plot_3d(points, points_color, title):
@@ -110,7 +110,18 @@ def plot_3d(points, points_color, title):
     plt.show()
 
 
-def plot_2d(points, points_color, title):
+def plot_2d(points, points_color, metadata, title):
+    fig = px.scatter(
+        x=points[:, 0],
+        y=points[:, 1],
+        color=[colors[p_color] for p_color in points_color],
+        title=title,
+        hover_data=[metadata]
+    )
+    fig.show()
+
+
+def plot_2d_matplotlib(points, points_color, title):
     fig, ax = plt.subplots(figsize=(3, 3), facecolor="white", constrained_layout=True)
     fig.suptitle(title, size=16)
     add_2d_scatter(ax, points, points_color)
@@ -149,7 +160,8 @@ def convert_annots_to_matrix(annots):
     # this method converts annotations into (N, 21*21) matrix and subject number as labels
     no_of_frames = len([frame for subject in annots for frame in annots[subject]])
     annots_matrix = np.zeros((no_of_frames, 21*21))
-    labels = np.zeros(no_of_frames)
+    labels = np.zeros(no_of_frames, dtype=int)
+    metadata = ['' for _ in range(no_of_frames)]
     count = 0
     for s, subject in enumerate(annots):
         for frame in annots[subject]:
@@ -158,14 +170,16 @@ def convert_annots_to_matrix(annots):
                 cur_annot[item['adult'], item['child']] = 1
             annots_matrix[count, :] = cur_annot.reshape((21*21))
             labels[count] = s
+            metadata[count] = f'assets/{subject}/cam1/{frame}'
             count += 1
-    return annots_matrix, labels
+    return annots_matrix, labels, metadata
 
 
 def main():
     annots = read_data("data/youth/signature/all/all_signature.json")
-    annots_matrix, labels = convert_annots_to_matrix(annots)
-    tsne_on_annotations(annots_matrix, labels)
+    annots_matrix, labels, metadata = convert_annots_to_matrix(annots)
+    S_t_sne = tsne_on_annotations(annots_matrix)
+    plot_2d(S_t_sne, labels, metadata, "T-distributed Stochastic  \n Neighbor Embedding")
 
 
 if __name__ == '__main__':
