@@ -110,7 +110,6 @@ def save_checkpoint(model, optimizer, scheduler, epoch, best_state, is_best, wor
     if is_best:
         shutil.copy(cp_name, '{}/{}.pth.tar'.format(save_dir, model_name))
         with open('{}/reco_results.json'.format(save_dir), 'w') as f:
-            del best_state['cm']
             json.dump(best_state, f)
 
 

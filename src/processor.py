@@ -50,10 +50,10 @@ class Processor(Initializer):
                 loss = self.loss_func(out, y.float())
             elif self.args.dataset_args['subset'] == 'signature':
                 out42, out12, out21x21, out6x6 = out
-                loss1 = self.loss_func(out42, y42.float())
-                loss2 = self.loss_func(out12, y12.float())
-                loss3 = self.loss_func(out21x21, y21x21.float())
-                loss4 = self.loss_func(out6x6, y6x6.float())
+                loss1 = self.loss_weights['42'] * self.loss_func(out42, y42.float())
+                loss2 = self.loss_weights['12'] * self.loss_func(out12, y12.float())
+                loss3 = self.loss_weights['21x21'] * self.loss_func(out21x21, y21x21.float())
+                loss4 = self.loss_weights['6x6'] * self.loss_func(out6x6, y6x6.float())
                 loss = loss1 + loss2 + loss3 + loss4
             loss.backward()
             self.optimizer.step()
@@ -202,10 +202,10 @@ class Processor(Initializer):
                     loss = self.loss_func(out, y.float())
                 elif self.args.dataset_args['subset'] == 'signature':
                     out42, out12, out21x21, out6x6 = out
-                    loss1 = self.loss_func(out42, y42.float())
-                    loss2 = self.loss_func(out12, y12.float())
-                    loss3 = self.loss_func(out21x21, y21x21.float())
-                    loss4 = self.loss_func(out6x6, y6x6.float())
+                    loss1 = self.loss_weights['42'] * self.loss_func(out42, y42.float())
+                    loss2 = self.loss_weights['12'] * self.loss_func(out12, y12.float())
+                    loss3 = self.loss_weights['21x21'] * self.loss_func(out21x21, y21x21.float())
+                    loss4 = self.loss_weights['6x6'] * self.loss_func(out6x6, y6x6.float())
                     loss = loss1 + loss2 + loss3 + loss4
                 eval_loss.append(loss.item())
 
@@ -317,9 +317,9 @@ class Processor(Initializer):
                 return bacc_top1, acc_top1, cm
         elif self.args.dataset_args['subset'] == 'signature':
             if save_score:
-                return test_jaccard42, test_jaccard12, score
+                return test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, score
             else:
-                return test_jaccard42, test_jaccard12, cm
+                return test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6
 
     def start(self):
         start_time = time()
@@ -346,7 +346,7 @@ class Processor(Initializer):
         else:
             # Resuming
             start_epoch = 0
-            best_state = {'acc_top1': 0, 'bacc_top1': 0, 'cm': 0, 'jaccard42': 0, 'jaccard12': 0, 'best_epoch': 0}
+            best_state = {'jaccard42': 0, 'jaccard12': 0, 'jaccard21x21': 0, 'jaccard6x6': 0, 'best_epoch': 0}
             if self.args.resume:
                 logging.info('Loading checkpoint ...')
                 checkpoint = U.load_checkpoint(self.args.work_dir, self.args.dataset_args.subset)
@@ -361,10 +361,11 @@ class Processor(Initializer):
                     logging.info('Best balanced accuracy: {:.2%}'.format(best_state['bacc_top1']))
                     logging.info('accuracy: {:.2%}'.format(best_state['acc_top1']))
                 elif self.args.dataset_args['subset'] == 'signature':
-                    logging.info('Best jaccard index: {:.2%}'.format(best_state['jaccard12']))
+                    logging.info('Best jaccard index: {:.2%}'.format(best_state['jaccard21x21']))
                 logging.info('Successful!')
                 logging.info('')
 
+            logging.info(f'Training size: {len(self.train_loader.dataset)}, Test size: {len(self.eval_loader.dataset)}')
             # Training
             logging.info('Starting training ...')
             for epoch in range(start_epoch, self.max_epoch):
@@ -383,10 +384,12 @@ class Processor(Initializer):
                             is_best = True
                             best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
                     elif self.args.dataset_args['subset'] == 'signature':
-                        jaccard42, jaccard12, cm = self.eval(epoch=epoch)
-                        if jaccard42 > best_state['jaccard42']:
+                        jaccard42, jaccard12, jaccard21x21, jaccard6x6 = self.eval(epoch=epoch)
+                        if jaccard21x21 > best_state['jaccard21x21']:
                             is_best = True
-                            best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12, 'cm': cm, 'best_epoch': epoch + 1})
+                            best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12,
+                                               'jaccard21x21': jaccard21x21, 'jaccard6x6': jaccard6x6,
+                                               'best_epoch': epoch + 1})
 
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
@@ -399,8 +402,12 @@ class Processor(Initializer):
                         best_state['bacc_top1'], best_state['acc_top1'], best_state['best_epoch'], U.get_time(time() - start_time)
                     ))
                 elif self.args.dataset_args['subset'] == 'signature':
-                    logging.info('Best jaccard index: 42 regions {:.2%} @{}th epoch, Total time: {}'.format(
-                        best_state['jaccard42'], best_state['best_epoch'], U.get_time(time() - start_time)
+                    logging.info('Best jaccard index: 21x21 {:.2%} @{}th epoch, Total time: {}'.format(
+                        best_state['jaccard21x21'], best_state['best_epoch'], U.get_time(time() - start_time)
+                    ))
+                    logging.info('Best Jaccard all results: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}'.format(
+                        best_state['jaccard42'], best_state['jaccard12'], best_state['jaccard21x21'],
+                        best_state['jaccard6x6']
                     ))
                 logging.info('')
 

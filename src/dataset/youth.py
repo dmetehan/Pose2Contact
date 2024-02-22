@@ -24,20 +24,23 @@ class Youth(CustomDataset):
         logging.info(f'Preparing folds for the YOUth contact signature dataset.')
         with open(os.path.join(path, 'all', 'folds.json')) as f:
             folds = json.load(f)
-            set_splits = {}
+            set_splits = {'train': [], 'val': [], 'test': []}
+            fold_division = {0: {'test': 0, 'val': 0, 'train': [1, 2, 3, 4]},
+                             1: {'test': 0, 'val': 1, 'train': [2, 3, 4]},
+                             2: {'test': 0, 'val': 2, 'train': [1, 3, 4]},
+                             3: {'test': 0, 'val': 3, 'train': [1, 2, 4]},
+                             4: {'test': 0, 'val': 4, 'train': [1, 2, 3]}}
             for f in range(len(folds)):
-                set_splits['test'] = folds[f]
-                train_subjects = []
-                for i in range(len(folds)):
-                    if i != f:
-                        train_subjects += folds[i]
-                set_splits['train'] = train_subjects
+                set_splits['test'] = folds[fold_division[f]['test']]
+                set_splits['val'] = folds[fold_division[f]['val']]
+                for train_fold in fold_division[f]['train']:
+                    set_splits['train'] += folds[train_fold]
                 data = pd.DataFrame(self.read_data(os.path.join(path, "all", data_file_name)))
                 annots = self.read_data(os.path.join(path, "all", annot_file_name))
-                for _set in ['train', 'test']:
+                for _set in ['train', 'test', 'val']:
                     set_subj_frames = [f'{subj}/{frame}' for subj in set_splits[_set] for frame in
                                        list(annots[subj].keys())]
-                    # TODO: Currently removing the frames with no pose detections!
+                    # Removing the frames with no pose detections!
                     data_subset = data[data['crop_path'].str.contains('|'.join(set_subj_frames), regex=True)]
 
                     reg_mapper = self.comb_regs(path, res=6)

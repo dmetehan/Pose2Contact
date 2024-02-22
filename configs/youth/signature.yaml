@@ -25,13 +25,23 @@ dataset_args:
   root_folder: ./data/youth
 
 # Model
-model_type: DoubleTPGCN
+model_type: TPGCN
 model_args:
   att_type: stpa
   kernel_size: [3,2]
   block_structure: m19
   reduct_ratio: 2
   bias: True
+  loss_weights:
+    '42': 0.15
+    '12': 0.05
+    21x21: 0.7
+    6x6: 0.1
+  multilabel_thresh:
+    '42': 0.2
+    '12': 0.25
+    21x21: 0.0625
+    6x6: 0.125
 
 
 # Optimizer

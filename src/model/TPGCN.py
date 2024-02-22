@@ -8,8 +8,20 @@ from .base_gcn import ResGCNModule, ResGCNInputBranch, init_param, zero_init_las
 
 class TPGCN(nn.Module):
     def __init__(self, module, structure, spatial_block, temporal_block, data_shape, num_class, A, **kwargs):
+        """
+
+        :param module:
+        :param structure:
+        :param spatial_block:
+        :param temporal_block:
+        :param data_shape:
+        :param num_class: For contact binary estimation this should correspond to the number of regions in one person
+        :param A:
+        :param kwargs:
+        """
+        self.num_class = num_class
         super(TPGCN, self).__init__()
-        logging.info(f"data_shape: {data_shape}")
+        # logging.info(f"data_shape: {data_shape}")
         _, _, num_channel = data_shape
         num_input = 1
 
@@ -26,9 +38,29 @@ class TPGCN(nn.Module):
         module_list += [module(256, 256, spatial_block, temporal_block, A, **kwargs) for _ in range(structure[3] - 1)]
         self.main_stream = nn.ModuleList(module_list)
 
-        # output
-        self.global_pooling = nn.AdaptiveAvgPool2d(1)
-        self.fcn = nn.Linear(256, num_class)
+        # output child
+        self.child_gpooling = nn.AdaptiveAvgPool2d(1)
+        self.child_fcn21 = nn.Linear(256, 21)
+        self.child_fcn6 = nn.Linear(256, 6)
+        self.child_fcn21x21 = nn.Linear(256, 21)
+        self.child_fcn6x6 = nn.Linear(256, 6)
+
+        # output adult
+        self.adult_gpooling = nn.AdaptiveAvgPool2d(1)
+        self.adult_fcn21 = nn.Linear(256, 21)
+        self.adult_fcn6 = nn.Linear(256, 6)
+        self.adult_fcn21x21 = nn.Linear(256, 21)
+        self.adult_fcn6x6 = nn.Linear(256, 6)
+
+        # output together
+        self.gpooling = nn.AdaptiveAvgPool2d(1)
+        self.fcn42 = nn.Linear(256, 42)
+        self.fcn12 = nn.Linear(256, 12)
+        self.fcn21x21 = nn.Linear(256, 21*21)
+        self.fcn6x6 = nn.Linear(256, 6*6)
+
+        # # auxiliary outputs from 21x21
+        # self.maxpool_adult21 = nn.MaxPool1d()
 
         # init parameters
         init_param(self.modules())
@@ -55,26 +87,58 @@ class TPGCN(nn.Module):
         for layer in self.main_stream:
             x = layer(x)
 
-        logging.debug(f"shape after the main stream is {x.shape}")
-
         # extract feature
         _, C, T, V = x.size()
-        feature = x.view(N, M, C, T, V).permute(0, 2, 3, 4, 1)
+        features = x.view(N, M, C, T, V).permute(0, 2, 3, 4, 1)
 
-        logging.debug(f"shape after extracting features is {x.shape}")
+        # # output
+        # xchild = self.child_gpooling(x)
+        # xchild = xchild.view(N, M, -1).mean(dim=1)
+        # xchild21 = self.child_fcn21(xchild)
+        # xchild6 = self.child_fcn6(xchild)
+        # xchild21x21 = self.child_fcn21x21(xchild)
+        # xchild6x6 = self.child_fcn6x6(xchild)
+        #
+        # # output
+        # xadult = self.adult_gpooling(x)
+        # xadult = xadult.view(N, M, -1).mean(dim=1)
+        # xadult21 = self.adult_fcn21(xadult)
+        # xadult6 = self.adult_fcn6(xadult)
+        # xadult21x21 = self.adult_fcn21x21(xadult)
+        # xadult6x6 = self.adult_fcn6x6(xadult)
 
         # output
-        x = self.global_pooling(x)
+        x = self.gpooling(x)
         x = x.view(N, M, -1).mean(dim=1)
-        x = self.fcn(x)
+        x42 = self.fcn42(x)
+        x12 = self.fcn12(x)
+        x21x21 = self.fcn21x21(x)
+        x6x6 = self.fcn6x6(x)
+
+        # x21x21 = self.fcn21x21(x)
+        # x42 = torch.cat((x21x21.view(-1, 21, 21).max(dim=1).values, x21x21.view(-1, 21, 21).max(dim=2).values), dim=1)
+        # x12 = self.fcn12(x)
+        # x6x6 = self.fcn6x6(x)
+
+        # # xadult * xchild.T
+        # x21x21 = torch.bmm(xadult21x21.view(-1, 21, 1), xchild21x21.view(-1, 1, 21))
+        # x21x21 = torch.reshape(x21x21, (-1, 21*21))
+        #
+        # x6x6 = torch.bmm(xadult6x6.view(-1, 6, 1), xchild6x6.view(-1, 1, 6))
+        # x6x6 = torch.reshape(x6x6, (-1, 6*6))
+        #
+        # x42 = torch.cat((xadult21, xchild21), dim=1)
+        # x12 = torch.cat((xadult6, xchild6), dim=1)
 
         logging.debug(f"shape of the output is {x.shape}")
+        logging.debug(f"shape of the feature is {features.shape}")
 
-        return x, feature
+        return (x42, x12, x21x21, x6x6), features
 
     @staticmethod
     def create(_, block_structure, att_type, reduction='r1', **kwargs):
-        structure = {'structure': [1, 2, 3, 3], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
+        # structure = {'structure': [1, 2, 3, 3], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
+        structure = {'structure': [1, 2, 2, 2], 'spatial_block': 'Basic', 'temporal_block': 'Basic'}
         __reduction = {
             'r1': {'reduction': 1},
             'r2': {'reduction': 2},
@@ -83,4 +147,3 @@ class TPGCN(nn.Module):
         }
         kwargs.update({'module': ResGCNModule, 'attention': None})
         return TPGCN(**structure, **(__reduction[reduction]), **kwargs)
-
