@@ -51,6 +51,7 @@ def main():
             best_states = run_cross_validation(args)
             outfile.write(json.dumps(best_states))
             outfile.write('\n')
+    outfile.close()
 
 
 if __name__ == '__main__':
