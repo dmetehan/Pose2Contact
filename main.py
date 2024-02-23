@@ -1,4 +1,6 @@
-import os, yaml, argparse
+import os
+import yaml
+import argparse
 from time import sleep
 
 # from src.generator import Generator
@@ -76,10 +78,10 @@ def update_parameters(parser, args):
             default_arg = vars(args)
             for k in yaml_arg.keys():
                 if k not in default_arg.keys():
-                    raise ValueError('Do NOT exist this parameter {}'.format(k))
+                    raise ValueError('This parameter does NOT exist {}'.format(k))
             parser.set_defaults(**yaml_arg)
     else:
-        raise ValueError('Do NOT exist this file in \'configs\' folder: {}!'.format(args.config))
+        raise ValueError('This file does NOT exist in \'configs\' folder: {}!'.format(args.config))
     return parser.parse_args()
 
 

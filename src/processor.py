@@ -342,7 +342,6 @@ class Processor(Initializer):
             logging.info('Starting evaluating ...')
             self.eval()
             logging.info('Finish evaluating!')
-
         else:
             # Resuming
             start_epoch = 0
@@ -415,6 +414,7 @@ class Processor(Initializer):
                 np.savetxt('{}/cm.csv'.format(self.save_dir), cm, fmt="%s", delimiter=",")
             logging.info('Finish training!')
             logging.info('')
+            return best_state
 
     def extract(self):
         logging.info('Starting extracting ...')

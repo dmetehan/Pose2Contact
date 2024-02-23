@@ -1,0 +1,2 @@
+fold0 should only be used for testing purposes using train and test sets
+The folds 1-2-3-4 are for cross validation using train and val sets

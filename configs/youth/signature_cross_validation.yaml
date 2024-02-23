@@ -1,0 +1,66 @@
+# Setting
+gpus: [0]
+seed: 1
+debug: False
+pretrained_path:
+work_dir: ./workdir
+no_progress_bar: False
+
+
+# Data Loader
+# flickr, youth
+dataset: youth_signature
+dataset_args:
+  subset: signature
+  trainset: train
+  evalset: val
+  graph: mutual
+  labeling: spatial
+  processing: symmetry
+  train_batch_size: 32
+  eval_batch_size: 32
+  num_frame: 1
+  transform: False
+  crop: True
+  root_folder: ./data/youth
+
+# Model
+model_type: TPGCN
+model_args:
+  att_type: stpa
+  kernel_size: [3,2]
+  block_structure: m19
+  reduct_ratio: 2
+  bias: True
+  multilabel_thresh:
+    '42': 0.2
+    '12': 0.25
+    21x21: 0.0625
+    6x6: 0.125
+
+
+# Optimizer
+# SGD, Adam
+optimizer: SGD
+optimizer_args:
+  SGD:
+    lr: 0.1
+    momentum: 0.9
+    nesterov: True
+    weight_decay: 0.0002
+  Adam:
+    lr: 0.1
+    betas: [0.9,0.99]
+    weight_decay: 0.0002
+
+# Scheduler
+# step, cosine
+lr_scheduler: cosine
+scheduler_args:
+  step:
+    max_epoch: 70
+    warm_up: 10
+    step_lr: [20,50]
+  cosine:
+    max_epoch: 65
+    warm_up: 5

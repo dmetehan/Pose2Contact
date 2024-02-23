@@ -39,18 +39,18 @@ class TPGCN(nn.Module):
         self.main_stream = nn.ModuleList(module_list)
 
         # output child
-        self.child_gpooling = nn.AdaptiveAvgPool2d(1)
-        self.child_fcn21 = nn.Linear(256, 21)
-        self.child_fcn6 = nn.Linear(256, 6)
-        self.child_fcn21x21 = nn.Linear(256, 21)
-        self.child_fcn6x6 = nn.Linear(256, 6)
-
-        # output adult
-        self.adult_gpooling = nn.AdaptiveAvgPool2d(1)
-        self.adult_fcn21 = nn.Linear(256, 21)
-        self.adult_fcn6 = nn.Linear(256, 6)
-        self.adult_fcn21x21 = nn.Linear(256, 21)
-        self.adult_fcn6x6 = nn.Linear(256, 6)
+        # self.child_gpooling = nn.AdaptiveAvgPool2d(1)
+        # self.child_fcn21 = nn.Linear(256, 21)
+        # self.child_fcn6 = nn.Linear(256, 6)
+        # self.child_fcn21x21 = nn.Linear(256, 21)
+        # self.child_fcn6x6 = nn.Linear(256, 6)
+        #
+        # # output adult
+        # self.adult_gpooling = nn.AdaptiveAvgPool2d(1)
+        # self.adult_fcn21 = nn.Linear(256, 21)
+        # self.adult_fcn6 = nn.Linear(256, 6)
+        # self.adult_fcn21x21 = nn.Linear(256, 21)
+        # self.adult_fcn6x6 = nn.Linear(256, 6)
 
         # output together
         self.gpooling = nn.AdaptiveAvgPool2d(1)
@@ -58,9 +58,6 @@ class TPGCN(nn.Module):
         self.fcn12 = nn.Linear(256, 12)
         self.fcn21x21 = nn.Linear(256, 21*21)
         self.fcn6x6 = nn.Linear(256, 6*6)
-
-        # # auxiliary outputs from 21x21
-        # self.maxpool_adult21 = nn.MaxPool1d()
 
         # init parameters
         init_param(self.modules())

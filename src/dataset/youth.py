@@ -9,17 +9,18 @@ from .custom_dataset import CustomDataset
 
 class Youth(CustomDataset):
 
-    def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections.json", **kwargs):
+    def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections.json", fold='fold0', **kwargs):
+        self.fold = fold
         self.subset = subset
         path = os.path.join(root_folder, subset)
         if subset == 'binary':
             self.prepare_sets(path, annot_file_name)
         elif subset == 'signature':
             self.prepare_folds(path, annot_file_name, "all_signature.json")
-        super().__init__(phase, path, annot_file_name, subset, **kwargs)
+        super().__init__(phase, path, annot_file_name, subset, fold, **kwargs)
 
     def prepare_folds(self, path, data_file_name, annot_file_name):
-        if os.path.exists(os.path.join(path, 'fold0')):
+        if os.path.exists(os.path.join(path, self.fold)):
             return
         logging.info(f'Preparing folds for the YOUth contact signature dataset.')
         with open(os.path.join(path, 'all', 'folds.json')) as f:
