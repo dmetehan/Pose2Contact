@@ -5,6 +5,9 @@ import random
 import yaml
 import argparse
 from time import sleep
+import sys
+if os.path.abspath(os.path.curdir)[-3:] == 'src':
+    sys.path.append(os.path.abspath('..'))
 from main import update_parameters, init_parser
 from src.processor import Processor
 
