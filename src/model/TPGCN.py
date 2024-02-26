@@ -35,7 +35,7 @@ class TPGCN(nn.Module):
         module_list = [module(32*num_input, 128, spatial_block, temporal_block, A, stride=2, **kwargs)]
         module_list += [module(128, 128, spatial_block, temporal_block, A, **kwargs) for _ in range(structure[2] - 1)]
         module_list += [module(128, 256, spatial_block, temporal_block, A, stride=2, **kwargs)]
-        module_list += [module(256, 256, spatial_block, temporal_block, A, **kwargs) for _ in range(structure[3] - 1)]
+        module_list += [module(256, 512, spatial_block, temporal_block, A, **kwargs) for _ in range(structure[3] - 1)]
         self.main_stream = nn.ModuleList(module_list)
 
         # output child
@@ -54,10 +54,10 @@ class TPGCN(nn.Module):
 
         # output together
         self.gpooling = nn.AdaptiveAvgPool2d(1)
-        self.fcn42 = nn.Linear(256, 42)
-        self.fcn12 = nn.Linear(256, 12)
-        self.fcn21x21 = nn.Linear(256, 21*21)
-        self.fcn6x6 = nn.Linear(256, 6*6)
+        self.fcn42 = nn.Linear(512, 42)
+        self.fcn12 = nn.Linear(512, 12)
+        self.fcn21x21 = nn.Linear(512, 21*21)
+        self.fcn6x6 = nn.Linear(512, 6*6)
 
         # init parameters
         init_param(self.modules())

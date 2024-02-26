@@ -10,6 +10,7 @@ from .custom_dataset import CustomDataset
 class Youth(CustomDataset):
 
     def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections.json", fold='fold0', **kwargs):
+        raise ValueError("Download pose_detections.json from drive and recalculate the folds!")
         self.fold = fold
         self.subset = subset
         path = os.path.join(root_folder, subset)
