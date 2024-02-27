@@ -9,8 +9,8 @@ from .custom_dataset import CustomDataset
 
 class Youth(CustomDataset):
 
-    def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections.json", fold='fold0', **kwargs):
-        raise ValueError("Download pose_detections.json from drive and recalculate the folds!")
+    def __init__(self, phase, root_folder, subset="binary", annot_file_name="pose_detections_identity_fixed.json", fold='fold0', **kwargs):
+        raise ValueError("Download pose_detections_identity_fixed.json from drive and recalculate the folds!")
         self.fold = fold
         self.subset = subset
         path = os.path.join(root_folder, subset)
@@ -62,7 +62,7 @@ class Youth(CustomDataset):
                     data_subset = data_subset.apply(add_signature, axis=1)
                     set_path = os.path.join(path, f'fold{f}', _set)
                     os.makedirs(set_path)
-                    data_subset.to_json(os.path.join(set_path, "pose_detections.json"))
+                    data_subset.to_json(os.path.join(set_path, "pose_detections_identity_fixed.json"))
 
     @staticmethod
     def comb_regs(path, res=21):
@@ -89,7 +89,7 @@ class Youth(CustomDataset):
                 data_subset = data[data['crop_path'].str.contains('|'.join(set_splits[_set]))]
                 set_path = os.path.join(path, _set)
                 os.makedirs(set_path)
-                data_subset.to_json(os.path.join(set_path, "pose_detections.json"))
+                data_subset.to_json(os.path.join(set_path, "pose_detections_identity_fixed.json"))
 
     def fill_no_dets(self):
         self.data = [(np.zeros((2, 17, 3)), item[1]) if len(item[0]) == 0
