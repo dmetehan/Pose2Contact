@@ -67,7 +67,7 @@ def main():
             args.model_args[key] = model_args
             best_states = run_cross_validation(args)
             with open('cross_val_results.txt', 'a+') as f:
-                f.write(json.dumps([best_states] + args.model_args[key]))
+                f.write(json.dumps(best_states + [args.model_args[key]]))
                 f.write('\n')
 
 
