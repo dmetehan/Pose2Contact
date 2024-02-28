@@ -21,7 +21,19 @@ def random_loss_weights_generator():
            '6x6': 0.1 * (10 - separators[2])}
 
 
-# TODO: Add loss weights decided during the meeting!
+def decided_weights_generator():
+    # Loss weights decided during the meeting!
+    decided_loss_weights = [{'42': 0.25, '12': 0.25, '21x21': 0.25, '6x6': 0.25},
+                            {'42': 0.35, '12': 0.15, '21x21': 0.35, '6x6': 0.15},
+                            {'42': 0.45, '12': 0.05, '21x21': 0.45, '6x6': 0.05},
+                            {'42': 0.15, '12': 0.15, '21x21': 0.35, '6x6': 0.35},
+                            {'42': 0.05, '12': 0.05, '21x21': 0.45, '6x6': 0.45},
+                            {'42': 0, '12': 0, '21x21': 1, '6x6': 0},
+                            {'42': 0.5, '12': 0, '21x21': 0.5, '6x6': 0},
+                            {'42': 0, '12': 0.5, '21x21': 0.5, '6x6': 0},
+                            {'42': 0, '12': 0, '21x21': 0.5, '6x6': 0.5}]
+    for loss_weights in decided_loss_weights:
+        yield loss_weights
 
 
 def run_cross_validation(args):
@@ -37,7 +49,8 @@ def run_cross_validation(args):
 
 def set_hyperparameter_generators():
     paramset = {}
-    paramset['loss_weights'] = random_loss_weights_generator
+    # paramset['loss_weights'] = random_loss_weights_generator
+    paramset['loss_weights'] = decided_weights_generator
     return paramset
 
 
@@ -53,7 +66,7 @@ def main():
             args.model_args[key] = next(paramset[key]())
             best_states = run_cross_validation(args)
             with open('cross_val_results.txt', 'a+') as f:
-                f.write(json.dumps(best_states + args.model_args[key]))
+                f.write(json.dumps([best_states] + args.model_args[key]))
                 f.write('\n')
 
 
