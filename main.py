@@ -65,6 +65,9 @@ def init_parser():
     parser.add_argument('--lr_scheduler', '-ls', type=str, default='', help='Initial learning rate scheduler')
     parser.add_argument('--scheduler_args', default=dict(), help='Args for scheduler')
 
+    # Cross Validation
+    parser.add_argument('--analyze_results', default=False, help='Analyze cross validation results')
+
     return parser
 
 

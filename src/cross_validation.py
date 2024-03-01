@@ -1,7 +1,7 @@
 import json
 import os
 import random
-
+import numpy as np
 import yaml
 import argparse
 from time import sleep
@@ -9,6 +9,7 @@ import sys
 sys.path.append(os.path.abspath(os.getcwd()))
 from main import update_parameters, init_parser
 from src.processor import Processor
+import matplotlib.pyplot as plt
 
 
 def random_loss_weights_generator():
@@ -55,20 +56,53 @@ def set_hyperparameter_generators():
     return paramset
 
 
+def read_results(out_file):
+    results = []
+    with open(out_file) as f:
+        for line in f:
+            results.append(json.loads(line))
+    return results
+
+
+def analyze_results(results):
+    for key in ['21+21', '6+6', '21x21', '6x6']:
+        print(f"{key:^6s}", end='&\t')
+    for key in ['21+21', '6+6', '21x21', '6x6']:
+        print(f"{key:^14s}", end='&\t')
+    print()
+    for res in results:
+        params = res[-1]
+        combined = {key: [res[0][key]] for key in res[0] if key != "best_epoch"}
+        for one_result in res[1:-1]:
+            for key in combined:
+                combined[key].append(one_result[key])
+        # print(params)
+        for key in params:
+            print(f"{f'{params[key]}':^6s}", end='&\t')
+        for key in combined:
+            print(f"{f'{np.mean(combined[key])*100:.2f}':>6s} ({np.std(combined[key])*100:.2f})", end='&\t')
+        print()
+
+
 def main():
+    out_file = 'cross_val_results.txt'
     parser = init_parser()
     args = parser.parse_args()
     args = update_parameters(parser, args)  # cmd > yaml > default
     # Waiting to run
     sleep(args.delay_hours * 3600)
-    paramset = set_hyperparameter_generators()
-    for key in paramset:
-        for model_args in paramset[key]():
-            args.model_args[key] = model_args
-            best_states = run_cross_validation(args)
-            with open('cross_val_results.txt', 'a+') as f:
-                f.write(json.dumps(best_states + [args.model_args[key]]))
-                f.write('\n')
+    if args.analyze_results:
+        results = read_results(out_file)
+        analyze_results(results)
+    else:
+        paramset = set_hyperparameter_generators()
+        for key in paramset:
+            for model_args in paramset[key]():
+                args.model_args[key] = model_args
+                best_states = run_cross_validation(args)
+                with open(out_file, 'a+') as f:
+                    f.write(json.dumps(best_states + [args.model_args[key]]))
+                    f.write('\n')
 
 
 if __name__ == '__main__':

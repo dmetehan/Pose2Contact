@@ -41,25 +41,25 @@ class Youth(CustomDataset):
                 for train_fold in fold_division[f]['train']:
                     set_splits['train'] += folds[train_fold]
                 data = pd.DataFrame(self.read_data(os.path.join(path, "all", data_file_name)))
+                data['subject'] = data['crop_path'].apply(lambda x: x.split('/')[-2])
+                data['frame'] = data['crop_path'].apply(lambda x: x.split('/')[-1])
                 annots = self.read_data(os.path.join(path, "all", annot_file_name))
                 for _set in ['train', 'test', 'val']:
-                    set_subj_frames = [f'{subj}/{frame}' for subj in set_splits[_set] for frame in
-                                       list(annots[subj].keys())]
                     # Removing the frames with no pose detections!
-                    data_subset = data[data['crop_path'].str.contains('|'.join(set_subj_frames), regex=True)]
+                    data_subset = data[data['subject'].isin(set_splits[_set])]
 
                     reg_mapper = self.comb_regs(path, res=6)
 
                     def add_signature(x):
                         subj, frame = x['crop_path'].split('/')[-2:]
-                        x['seg21_adult'] = [elem['adult'] for elem in annots[subj][frame]]
-                        x['seg21_child'] = [elem['child'] for elem in annots[subj][frame]]
-                        x['seg6_adult'] = [reg_mapper(elem['adult']) for elem in annots[subj][frame]]
-                        x['seg6_child'] = [reg_mapper(elem['child']) for elem in annots[subj][frame]]
+                        x['seg21_adult'] = [elem['adult'] for elem in annots[subj][frame]] if frame in annots[subj] else []
+                        x['seg21_child'] = [elem['child'] for elem in annots[subj][frame]] if frame in annots[subj] else []
+                        x['seg6_adult'] = [reg_mapper(elem['adult']) for elem in annots[subj][frame]] if frame in annots[subj] else []
+                        x['seg6_child'] = [reg_mapper(elem['child']) for elem in annots[subj][frame]] if frame in annots[subj] else []
                         x['signature21x21'] = [(elem['adult'], elem['child'])
-                                               for elem in annots[subj][frame]]
+                                               for elem in annots[subj][frame]] if frame in annots[subj] else []
                         x['signature6x6'] = [(reg_mapper(elem['adult']), reg_mapper(elem['child']))
-                                             for elem in annots[subj][frame]]
+                                             for elem in annots[subj][frame]] if frame in annots[subj] else []
                         return x
 
                     data_subset = data_subset.apply(add_signature, axis=1)
@@ -103,21 +103,6 @@ class Youth(CustomDataset):
         print(min_sample_diff)
         print(min_contact_diff)
         print(min_folds)
-        # [['B49427' 'B46724' 'B64612' 'B84543' 'B78799' 'B58671' 'B41645' 'B37295'
-        #   'B75514' 'B00432' 'B45111' 'B50284' 'B68344' 'B60741' 'B83286' 'B64172'
-        #   'B00738' 'B00836' 'B00157']
-        #  ['B75777' 'B40295' 'B00071' 'B45742' 'B33892' 'B00267' 'B40508' 'B80924'
-        #   'B81926' 'B86218' 'B83755' 'B59400' 'B80116' 'B36445' 'B60004' 'B73095'
-        #   'B62594' 'B47859' 'B63936']
-        #  ['B00501' 'B70410' 'B74193' 'B67411' 'B75027' 'B35574' 'B56392' 'B00230'
-        #   'B72088' 'B87817' 'B44040' 'B87499' 'B48908' 'B72504' 'B71725' 'B33718'
-        #   'B69982' 'B49702' 'B49249']
-        #  ['B42568' 'B70930' 'B46237' 'B48446' 'B51848' 'B00402' 'B35191' 'B61501'
-        #   'B34489' 'B85387' 'B48098' 'B60483' 'B78220' 'B71467' 'B44801' 'B36241'
-        #   'B84259' 'B64396' 'B54732']
-        #  ['B61791' 'B55777' 'B53434' 'B51920' 'B56066' 'B41974' 'B41317' 'B66340'
-        #   'B51311' 'B39657' 'B38777' 'B39886' 'B62722' 'B82756' 'B43691' 'B45358'
-        #   'B00018' 'B77974' 'B77168']]
         with open(os.path.join(path, 'all', folds_file_name), 'w') as f:
             json.dump(min_folds.tolist(), f)
 
