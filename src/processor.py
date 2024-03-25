@@ -175,11 +175,8 @@ class Processor(Initializer):
             cm = np.zeros((self.num_class, self.num_class))
             pred_scores42, pred_scores12, pred_scores21x21, pred_scores6x6 = [], [], [], []
             all_labels42, all_labels12, all_labels21x21, all_labels6x6 = [], [], [], []
-            batch_jaccard42, batch_jaccard12 = 0, 0
-            batch_jaccard21x21, batch_jaccard6x6 = 0, 0
             eval_iter = self.eval_loader if self.no_progress_bar else tqdm(self.eval_loader, dynamic_ncols=True)
             for num, (x, y) in enumerate(eval_iter):
-
                 # Using GPU
                 x = x.float().to(self.device)
                 if self.args.dataset_args['subset'] == 'binary':
@@ -233,23 +230,6 @@ class Processor(Initializer):
                     pred_scores21x21 += torch.sigmoid(out21x21.detach().cpu()).tolist()
                     pred_scores6x6 += torch.sigmoid(out6x6.detach().cpu()).tolist()
 
-                    # Calculating Jaccard Index
-                    preds = torch.sigmoid(out42.detach().cpu()) > self.multilabel_thresh['42']
-                    batch_jaccard42 += jaccard_score(y42.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
-                    logging.debug(f"Batch jaccard 42: {batch_jaccard42}")
-
-                    preds = torch.sigmoid(out12.detach().cpu()) > self.multilabel_thresh['12']
-                    batch_jaccard12 += jaccard_score(y12.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
-                    logging.debug(f"Batch jaccard 12: {batch_jaccard12}")
-
-                    preds = torch.sigmoid(out21x21.detach().cpu()) > self.multilabel_thresh['21x21']
-                    batch_jaccard21x21 += jaccard_score(y21x21.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
-                    logging.debug(f"Batch jaccard 21x21: {batch_jaccard21x21}")
-
-                    preds = torch.sigmoid(out6x6.detach().cpu()) > self.multilabel_thresh['6x6']
-                    batch_jaccard6x6 += jaccard_score(y6x6.cpu(), preds, average='micro') * x.size(0)  # multiplying with batch size
-                    logging.debug(f"Batch jaccard 6x6: {batch_jaccard6x6}")
-
                 # Showing Progress
                 if self.no_progress_bar and self.args.evaluate:
                     logging.info('Batch: {}/{}'.format(num + 1, len(self.eval_loader)))
@@ -286,13 +266,22 @@ class Processor(Initializer):
                     best_baseline_results['6x6'][0], best_baseline_results['6x6'][1]
                 ))
                 # Visualize prediction errors as heatmaps for 21 region segmentation predictions
-                preds42 = torch.Tensor(pred_scores42) > self.multilabel_thresh['42']
+                preds42 = torch.sigmoid(torch.Tensor(pred_scores42)) > self.multilabel_thresh['42']
                 visualize.vis_pred_errors_heatmap(all_labels42, preds42, os.path.join(self.save_dir, 'prediction_errors'))
 
-            test_jaccard42 = batch_jaccard42 / num_sample
-            test_jaccard12 = batch_jaccard12 / num_sample
-            test_jaccard21x21 = batch_jaccard21x21 / num_sample
-            test_jaccard6x6 = batch_jaccard6x6 / num_sample
+            jaccard_avg = 'micro'
+            preds42 = torch.Tensor(pred_scores42) > self.multilabel_thresh['42']
+            test_jaccard42 = jaccard_score(all_labels42, preds42, average=jaccard_avg)
+            preds12 = torch.Tensor(pred_scores12) > self.multilabel_thresh['12']
+            test_jaccard12 = jaccard_score(all_labels12, preds12, average=jaccard_avg)
+            preds21x21 = torch.Tensor(pred_scores21x21) > self.multilabel_thresh['21x21']
+            test_jaccard21x21 = jaccard_score(all_labels21x21, preds21x21, average=jaccard_avg)
+            preds6x6 = torch.Tensor(pred_scores6x6) > self.multilabel_thresh['6x6']
+            test_jaccard6x6 = jaccard_score(all_labels6x6, preds6x6, average=jaccard_avg)
+
+            all_preds = {'42': preds42, '12': preds12, '21x21': preds21x21, '6x6': preds6x6}
+            kwargs = {'average': 'samples'}
+            visualize.vis_per_sample_score(all_eval_labels, all_preds, jaccard_score, self.save_dir, **kwargs)
             logging.info('Test Jaccard: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}, Mean loss:{:.4f}'.format(
                 test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, eval_loss
             ))

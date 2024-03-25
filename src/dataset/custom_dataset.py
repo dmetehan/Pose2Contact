@@ -16,22 +16,32 @@ class CustomDataset(Dataset):
         self.data = self.read_data(os.path.join(root_folder, phase, annot_file_name))
         self.convert_to_flickr()
         self.remove_ambiguous()
-        self.format_data()
-        self.fill_no_dets()
+        self.format_data(normalize=True)
+        # self.fill_no_dets()  # not necessary anymore because no detection samples are discarded
         # TODO: Add normalization of the coordinates to [0, 1]
         self.datashape = [2, 17, 3]
 
     def remove_ambiguous(self): self.data = [self.data[d] for d in range(len(self.data)) if self.data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
 
-    def format_data(self):
+    def format_data(self, normalize=False):
         if self.subset == 'binary':
             self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
         elif self.subset == 'signature':
-            self.data = [(np.array(self.data[d]['preds']),
+            self.data = [(np.array(self.data[d]['preds']) if not normalize else self.normalize_preds(self.data[d]['preds']),
                           (self.onehot_segmentation(self.data[d]['seg21_adult'], self.data[d]['seg21_child'], res=21),
                            self.onehot_segmentation(self.data[d]['seg6_adult'], self.data[d]['seg6_child'], res=6),
                            self.onehot_sig(self.data[d]['signature21x21'], res=21),
-                           self.onehot_sig(self.data[d]['signature6x6'], res=6))) for d in range(len(self.data))]
+                           self.onehot_sig(self.data[d]['signature6x6'], res=6))) for d in range(len(self.data))
+                         if self.onehot_sig(self.data[d]['signature21x21'], res=21).sum() > 0]
+
+    @staticmethod
+    def normalize_preds(preds):
+        preds = np.array(preds)
+        max_values = preds[:, :, :2].max(axis=1).max(axis=0)
+        min_values = preds[:, :, :2].min(axis=1).min(axis=0)
+        scale_values = max_values - min_values
+        preds[:, :, :-1] = (preds[:, :, :-1] - min_values) / scale_values
+        return preds
 
     @staticmethod
     def onehot_segmentation(adult_seg, child_seg, res=21):

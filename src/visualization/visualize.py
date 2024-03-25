@@ -27,6 +27,22 @@ def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
     plt.clf()
 
 
+def vis_per_sample_score(gts, preds, eval_func, save_dir, **kwargs):
+    os.makedirs(save_dir, exist_ok=True)
+    sample_scores = {key: [] for key in ["42", "21x21"]}
+    for key in sample_scores:
+        for sample_gt, sample_pred in zip(gts[key], preds[key]):
+            sample_scores[key].append(eval_func([sample_gt], [sample_pred.long().tolist()], **kwargs))
+        plt.plot(range(len(sample_scores[key])), sample_scores[key], label=key)
+    # plt.xticks(torch.linspace(0, 1, 25))
+    # plt.xticks(rotation=90)
+    plt.grid()
+    plt.legend()
+    # plt.show()
+    plt.savefig(os.path.join(save_dir, f'per_sample_score.png'))
+    plt.clf()
+
+
 def _init_heatmaps():
     people = ['adult', 'child']
     sketches = {pers: cv2.imread('data/rid_base.png') for pers in people}
@@ -64,7 +80,7 @@ def vis_pred_errors_heatmap(gts, preds, save_dir):
             img_cpy = sketches[person].copy()
             colormap = plt.get_cmap('RdYlGn')
             for region, value in enumerate(_set[person]):
-                print(f'{person} - {name}: {value}')
+                # print(f'{person} - {name}: {value}')
                 # x = (value - minimum[name]) / (maximum[name] - minimum[name])
                 r, g, b = colormap(value)[:3]
                 img_cpy[mask_ind[person] == (region + 1)] = (255 * b, 255 * g, 255 * r)  # for cv2 the order is bgr
