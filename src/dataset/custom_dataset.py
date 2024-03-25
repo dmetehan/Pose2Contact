@@ -10,6 +10,7 @@ class CustomDataset(Dataset):
 
     def __init__(self, phase, root_folder, annot_file_name, subset='binary', fold='fold0', **kwargs):
         self.subset = subset
+        self.phase = phase
         logging.info(f'{self.subset} dataset {phase} set on fold {fold}')
         if subset == 'signature':
             root_folder = os.path.join(root_folder, fold)
@@ -32,7 +33,7 @@ class CustomDataset(Dataset):
                            self.onehot_segmentation(self.data[d]['seg6_adult'], self.data[d]['seg6_child'], res=6),
                            self.onehot_sig(self.data[d]['signature21x21'], res=21),
                            self.onehot_sig(self.data[d]['signature6x6'], res=6))) for d in range(len(self.data))
-                         if self.onehot_sig(self.data[d]['signature21x21'], res=21).sum() > 0]
+                         if self.phase in ['train', 'trainval'] or self.onehot_sig(self.data[d]['signature21x21'], res=21).sum() > 0]
 
     @staticmethod
     def normalize_preds(preds):
