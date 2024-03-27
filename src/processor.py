@@ -4,6 +4,7 @@ import os
 from sklearn.metrics import jaccard_score
 from tqdm import tqdm
 from time import time
+import json
 
 from . import utils as U
 from .initializer import Initializer
@@ -23,7 +24,7 @@ class Processor(Initializer):
         batch_jaccard42, batch_jaccard12 = 0, 0
         batch_jaccard21x21, batch_jaccard6x6 = 0, 0
         train_iter = self.train_loader if self.no_progress_bar else tqdm(self.train_loader, dynamic_ncols=True)
-        for num, (x, y) in enumerate(train_iter):
+        for num, (x, y, meta) in enumerate(train_iter):
             self.optimizer.zero_grad()
 
             # Using GPU
@@ -149,7 +150,7 @@ class Processor(Initializer):
 
     def get_all_train_labels(self):
         all_labels42, all_labels12, all_labels21x21, all_labels6x6 = [], [], [], []
-        for num, (x, y) in enumerate(self.train_loader):
+        for num, (x, y, _) in enumerate(self.train_loader):
                 y42 = y[0].long().to(self.device)
                 y12 = y[1].long().to(self.device)
                 y21x21 = y[2].long().to(self.device)
@@ -164,9 +165,6 @@ class Processor(Initializer):
         self.model.eval()
         start_eval_time = time()
         score = {}
-        if epoch is None:
-            all_train_labels = self.get_all_train_labels()
-            all_baseline_clfs = get_baseline_predictors(all_train_labels)
         with torch.no_grad():
             num_top1 = 0
             num_sample, eval_loss = 0, []
@@ -175,8 +173,12 @@ class Processor(Initializer):
             cm = np.zeros((self.num_class, self.num_class))
             pred_scores42, pred_scores12, pred_scores21x21, pred_scores6x6 = [], [], [], []
             all_labels42, all_labels12, all_labels21x21, all_labels6x6 = [], [], [], []
+            all_subjects = []
+            all_meta = []
             eval_iter = self.eval_loader if self.no_progress_bar else tqdm(self.eval_loader, dynamic_ncols=True)
-            for num, (x, y) in enumerate(eval_iter):
+            for num, (x, y, meta) in enumerate(eval_iter):
+                all_subjects += meta[0]
+                all_meta.append(meta)
                 # Using GPU
                 x = x.float().to(self.device)
                 if self.args.dataset_args['subset'] == 'binary':
@@ -256,6 +258,8 @@ class Processor(Initializer):
                 kwargs = {'epoch': epoch, 'save_dir': os.path.join(self.save_dir, 'thresholding', 'eval'), 'average': 'micro'}
                 visualize.vis_threshold_eval(all_eval_labels, pred_scores, jaccard_score, **kwargs)
             else:
+                all_train_labels = self.get_all_train_labels()
+                all_baseline_clfs = get_baseline_predictors(all_train_labels)
                 kwargs = {'average': 'micro'}
                 all_baseline_results, best_baseline_results = predict_with_predictors(all_eval_labels, all_baseline_clfs, jaccard_score, **kwargs)
 
@@ -266,7 +270,7 @@ class Processor(Initializer):
                     best_baseline_results['6x6'][0], best_baseline_results['6x6'][1]
                 ))
                 # Visualize prediction errors as heatmaps for 21 region segmentation predictions
-                preds42 = torch.sigmoid(torch.Tensor(pred_scores42)) > self.multilabel_thresh['42']
+                preds42 = torch.Tensor(pred_scores42) > self.multilabel_thresh['42']
                 visualize.vis_pred_errors_heatmap(all_labels42, preds42, os.path.join(self.save_dir, 'prediction_errors'))
 
             jaccard_avg = 'micro'
@@ -279,9 +283,11 @@ class Processor(Initializer):
             preds6x6 = torch.Tensor(pred_scores6x6) > self.multilabel_thresh['6x6']
             test_jaccard6x6 = jaccard_score(all_labels6x6, preds6x6, average=jaccard_avg)
 
-            all_preds = {'42': preds42, '12': preds12, '21x21': preds21x21, '6x6': preds6x6}
+            all_preds = {'42': preds42.long().tolist(), '12': preds12.long().tolist(), '21x21': preds21x21.long().tolist(), '6x6': preds6x6.long().tolist()}
             kwargs = {'average': 'samples'}
-            visualize.vis_per_sample_score(all_eval_labels, all_preds, jaccard_score, self.save_dir, **kwargs)
+            visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
+            json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
             logging.info('Test Jaccard: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}, Mean loss:{:.4f}'.format(
                 test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, eval_loss
             ))

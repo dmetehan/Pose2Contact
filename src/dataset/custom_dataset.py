@@ -22,7 +22,8 @@ class CustomDataset(Dataset):
         # TODO: Add normalization of the coordinates to [0, 1]
         self.datashape = [2, 17, 3]
 
-    def remove_ambiguous(self): self.data = [self.data[d] for d in range(len(self.data)) if self.data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
+    def remove_ambiguous(self):
+        self.data = [self.data[d] for d in range(len(self.data)) if self.data[d]['contact_type'] != '1']  # 0:no contact, 1:ambiguous, 2:contact
 
     def format_data(self, normalize=False):
         if self.subset == 'binary':
@@ -32,8 +33,10 @@ class CustomDataset(Dataset):
                           (self.onehot_segmentation(self.data[d]['seg21_adult'], self.data[d]['seg21_child'], res=21),
                            self.onehot_segmentation(self.data[d]['seg6_adult'], self.data[d]['seg6_child'], res=6),
                            self.onehot_sig(self.data[d]['signature21x21'], res=21),
-                           self.onehot_sig(self.data[d]['signature6x6'], res=6))) for d in range(len(self.data))
-                         if self.phase in ['train', 'trainval'] or self.onehot_sig(self.data[d]['signature21x21'], res=21).sum() > 0]
+                           self.onehot_sig(self.data[d]['signature6x6'], res=6)),
+                          (self.data[d]['subject'], self.data[d]['frame'])) for d in range(len(self.data))
+                         if self.phase in ['train', 'trainval']
+                         or self.onehot_sig(self.data[d]['signature21x21'], res=21).sum() > 0]  # removing no contact cases from val, test sets
 
     @staticmethod
     def normalize_preds(preds):

@@ -27,17 +27,21 @@ def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
     plt.clf()
 
 
-def vis_per_sample_score(gts, preds, eval_func, save_dir, **kwargs):
+def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs):
     os.makedirs(save_dir, exist_ok=True)
     sample_scores = {key: [] for key in ["42", "21x21"]}
+    plt.figure(figsize=(15, 15))
     for key in sample_scores:
         for sample_gt, sample_pred in zip(gts[key], preds[key]):
-            sample_scores[key].append(eval_func([sample_gt], [sample_pred.long().tolist()], **kwargs))
+            sample_scores[key].append(eval_func([sample_gt], [sample_pred], **kwargs))
         plt.plot(range(len(sample_scores[key])), sample_scores[key], label=key)
-    # plt.xticks(torch.linspace(0, 1, 25))
-    # plt.xticks(rotation=90)
+    div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj] + [len(all_subjects) - 1]
+    plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
+               [all_subjects[0]] + [subj for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj])
+    plt.xticks(rotation=90)
     plt.grid()
     plt.legend()
+    # TODO: change the plot to bar plot and combine bars of the same subjects
     # plt.show()
     plt.savefig(os.path.join(save_dir, f'per_sample_score.png'))
     plt.clf()
@@ -82,27 +86,28 @@ def vis_pred_errors_heatmap(gts, preds, save_dir):
             for region, value in enumerate(_set[person]):
                 # print(f'{person} - {name}: {value}')
                 # x = (value - minimum[name]) / (maximum[name] - minimum[name])
-                r, g, b = colormap(value)[:3]
+                r, g, b = colormap(float(value))[:3]
                 img_cpy[mask_ind[person] == (region + 1)] = (255 * b, 255 * g, 255 * r)  # for cv2 the order is bgr
             cv2.imwrite(os.path.join(save_dir, f'{person}_{name}.png'), img_cpy)
     #     cv2.imshow(person, img_cpy)
     # cv2.waitKey(0)
 
 
-def tsne_on_annotations(annots_matrix, n_components=2):
-    svd = TruncatedSVD(n_components=50, n_iter=50, random_state=42)
-    svd.fit(annots_matrix)
-    annots_matrix = svd.transform(annots_matrix)
-    for perplexity in [25]:
-        print(perplexity)
-        t_sne = manifold.TSNE(
-            n_components=n_components,
-            perplexity=perplexity,
-            init="pca",
-            n_iter=250,
-            random_state=0
-        )
-        S_t_sne = t_sne.fit_transform(annots_matrix)
+def tsne_on_annotations(annots_matrix, perplexity, n_components=2, n_iter=500):
+    # TODO: ADD TEST INFO TO COLOR BASED ON JACCARD SCORE
+    if annots_matrix.shape[1] > 50:
+        svd = TruncatedSVD(n_components=50, n_iter=50, random_state=42)
+        svd.fit(annots_matrix)
+        annots_matrix = svd.transform(annots_matrix)
+    print(perplexity)
+    t_sne = manifold.TSNE(
+        n_components=n_components,
+        perplexity=perplexity,
+        init="pca",
+        n_iter=n_iter,
+        random_state=0
+    )
+    S_t_sne = t_sne.fit_transform(annots_matrix)
     return S_t_sne
 
 
@@ -172,11 +177,13 @@ def read_data(annot_file_path):
     return data
 
 
-def convert_annots_to_matrix(annots):
+def convert_annots_to_matrix(annots, signature=True):
     # this method converts annotations into (N, 21*21) matrix and subject number as labels
+    # crop path is written in metadata
     no_of_frames = len([frame for subject in annots for frame in annots[subject]])
-    annots_matrix = np.zeros((no_of_frames, 21*21))
+    annots_matrix = np.zeros((no_of_frames, 21*21 if signature else 21+21))
     labels = np.zeros(no_of_frames, dtype=int)
+    all_subject_frames = []
     metadata = ['' for _ in range(no_of_frames)]
     count = 0
     for s, subject in enumerate(annots):
@@ -184,18 +191,23 @@ def convert_annots_to_matrix(annots):
             cur_annot = np.zeros((21, 21))
             for item in annots[subject][frame]:
                 cur_annot[item['adult'], item['child']] = 1
-            annots_matrix[count, :] = cur_annot.reshape((21*21))
+            if signature:
+                annots_matrix[count, :] = cur_annot.reshape((21*21))
+            else:
+                annots_matrix[count, :] = np.concatenate((cur_annot.sum(axis=0), cur_annot.sum(axis=1)))
             labels[count] = s
+            all_subject_frames.append((subject, frame))
             metadata[count] = f'assets/{subject}/cam1/{frame}'
             count += 1
-    return annots_matrix, labels, metadata
+    return annots_matrix, labels, metadata, all_subject_frames
 
 
 def main():
     annots = read_data("data/youth/signature/all/all_signature.json")
-    annots_matrix, labels, metadata = convert_annots_to_matrix(annots)
-    S_t_sne = tsne_on_annotations(annots_matrix)
-    plot_2d(S_t_sne, labels, metadata, "T-distributed Stochastic  \n Neighbor Embedding")
+    annots_matrix, labels, metadata, _ = convert_annots_to_matrix(annots, signature=False)
+    for perlexity in [25, 50, 75, 100, 250]:
+        S_t_sne = tsne_on_annotations(annots_matrix, perplexity=perlexity)
+        plot_2d(S_t_sne, labels, metadata, f"{perlexity}, T-distributed Stochastic  \n Neighbor Embedding")
 
 
 if __name__ == '__main__':
