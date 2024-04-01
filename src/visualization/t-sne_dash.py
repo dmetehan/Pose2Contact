@@ -11,7 +11,7 @@ annots = read_data("../../data/youth/signature/all/all_signature.json")
 test_samples_info = read_data("../../workdir/youth/signature/temp/save_preds.json")  # all_preds, all_labels, metadata
 signature = False
 annots_matrix, labels, metadata, all_subject_frames = convert_annots_to_matrix(annots, signature=signature)  # if signature==False: segmentation
-S_t_sne = tsne_on_annotations(annots_matrix, perplexity=75, n_iter=500)
+S_t_sne = tsne_on_annotations(annots_matrix, perplexity=75, n_iter=2500)
 # Ensure you have the images in the 'assets' folder and update these paths accordingly
 df = pd.DataFrame({
     'x': S_t_sne[:, 0],
@@ -28,11 +28,14 @@ if color_test_points:
         try:
             idx = test_samples_info['metadata'].index([[subj], [frame]])
             score = jaccard_score(test_samples_info['labels'][key][idx], test_samples_info['preds'][key][idx])
-            point_colors[s] = (200*(1-score), 255*score, 0)
+            point_colors[s] = 'high' if score > 0.5 else ('mid' if score > 0.25 else 'low')
         except ValueError:
-            point_colors[s] = (0, 0, 0, 0.5)
+            point_colors[s] = 'train'
 # Create a Plotly figure
-fig = px.scatter(df, x='x', y='y', hover_data=['image_url'], color=point_colors)
+fig = px.scatter(df, x='x', y='y', hover_data=['image_url'], color=point_colors, color_discrete_map={'train': 'blue',
+                                                                                                     'low': 'red',
+                                                                                                     'mid': 'yellow',
+                                                                                                     'high': 'green'})
 
 # Initialize Dash app
 app = dash.Dash(__name__)

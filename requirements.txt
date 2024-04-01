@@ -4,13 +4,13 @@ nvidia-ml-py3
 tensorboardX
 thop
 
-numpy
+numpy  # numpy-1.18.5
 tqdm
 pynvml
 torch
 pandas
 scikit-learn
 
-matplotlib
+matplotlib  # matplotlib-3.7.5
 opencv-python
 plotly

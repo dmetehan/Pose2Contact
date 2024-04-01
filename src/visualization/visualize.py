@@ -12,6 +12,40 @@ from sklearn.decomposition import TruncatedSVD
 import plotly.express as px
 
 
+def vis_touch_region_counts(gts, preds, all_subjects, eval_func, save_dir, **kwargs):
+    os.makedirs(save_dir, exist_ok=True)
+    sample_scores = {key: [] for key in ["42", "21x21"]}
+    reg_counts_preds = {key: [] for key in ["42", "21x21"]}
+    reg_counts_gts = {key: [] for key in ["42", "21x21"]}
+    for key in sample_scores:
+        plt.figure(figsize=(16, 16))
+        plt.title(f"{key} Task")
+        for sample_gt, sample_pred in zip(gts[key], preds[key]):
+            sample_scores[key].append(eval_func([sample_gt], [sample_pred], **kwargs))
+            reg_counts_gts[key].append(np.sum(sample_gt))
+            reg_counts_preds[key].append(np.sum(sample_pred))
+        # sort both lists:
+        sort_array = reg_counts_gts[key]  # array to be sorted with
+        sorted_indices = np.argsort(sort_array)
+        all_scores = np.array(sample_scores[key])[sorted_indices]
+        reg_cnts_gts = np.array(reg_counts_gts[key])[sorted_indices]
+        reg_cnts_preds = np.array(reg_counts_preds[key])[sorted_indices]
+        plt.scatter(reg_cnts_gts, reg_cnts_preds, label="pred counts", marker="o")
+        # fitting a linear regression line
+        m, b = np.polyfit(reg_cnts_gts, reg_cnts_preds, 1)
+        correlation = np.corrcoef(reg_cnts_gts, reg_cnts_preds)
+        print("Pearson correlation coefficient:", correlation)
+        # adding the regression line to the scatter plot
+        plt.plot(reg_cnts_gts, m * reg_cnts_gts + b)
+        plt.xlabel("GT region counts")
+        plt.ylabel("Predicted region counts")
+        # plt.scatter(reg_cnts_gts, all_scores, label="scores", marker="+")
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(save_dir, f'reg_count_score_{key}.png'))
+        plt.show()
+
+
 def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
     os.makedirs(save_dir, exist_ok=True)
     xs = torch.linspace(0, 1, 25)
@@ -30,21 +64,22 @@ def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
 def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs):
     os.makedirs(save_dir, exist_ok=True)
     sample_scores = {key: [] for key in ["42", "21x21"]}
-    plt.figure(figsize=(15, 15))
     for key in sample_scores:
+        fig = plt.figure(figsize=(16, 16))
+        plt.title(f"{key} Task")
         for sample_gt, sample_pred in zip(gts[key], preds[key]):
             sample_scores[key].append(eval_func([sample_gt], [sample_pred], **kwargs))
-        plt.plot(range(len(sample_scores[key])), sample_scores[key], label=key)
-    div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj] + [len(all_subjects) - 1]
-    plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
-               [all_subjects[0]] + [subj for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj])
-    plt.xticks(rotation=90)
-    plt.grid()
-    plt.legend()
-    # TODO: change the plot to bar plot and combine bars of the same subjects
-    # plt.show()
-    plt.savefig(os.path.join(save_dir, f'per_sample_score.png'))
-    plt.clf()
+        plt.bar(range(len(sample_scores[key])), sample_scores[key], label=key)
+        div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj] + [len(all_subjects) - 1]
+        plt.xticks(div_locs, ['' for _ in div_locs], minor=False)
+        plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
+                   [all_subjects[0]] + [subj for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj],
+                   minor=True, rotation=90)
+        plt.grid()
+        plt.legend()
+        plt.savefig(os.path.join(save_dir, f'per_sample_score_{key}.png'))
+        # plt.show()
+        plt.close(fig)
 
 
 def _init_heatmaps():
