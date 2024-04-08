@@ -1,6 +1,9 @@
-import logging, torch, pickle, numpy as np
+import logging
+import torch
+import pickle
+import numpy as np
 import os
-
+from torch.nn import functional
 from sklearn.metrics import jaccard_score
 from tqdm import tqdm
 from time import time
@@ -48,7 +51,7 @@ class Processor(Initializer):
 
             # Updating Weights
             if self.args.dataset_args['subset'] == 'binary':
-                loss = self.loss_func(out, y.float())
+                loss = self.loss_func(out[-1], functional.one_hot(y, 2).float())
             elif self.args.dataset_args['subset'] == 'signature':
                 out42, out12, out21x21, out6x6 = out
                 loss1 = self.loss_weights['42'] * self.loss_func(out42, y42.float())
@@ -67,7 +70,7 @@ class Processor(Initializer):
             num_sample += x.size(0)
             if self.args.dataset_args['subset'] == 'binary':
                 # Calculating Recognition Accuracies
-                reco_top1 = out.max(1)[1]
+                reco_top1 = out[-1].max(1)[1]
                 num_top1 += reco_top1.eq(y).sum().item()
 
                 # Calculating Balanced Accuracy
@@ -198,7 +201,7 @@ class Processor(Initializer):
 
                 # Getting Loss
                 if self.args.dataset_args['subset'] == 'binary':
-                    loss = self.loss_func(out, y.float())
+                    loss = self.loss_func(out[-1], functional.one_hot(y, 2).float())
                 elif self.args.dataset_args['subset'] == 'signature':
                     out42, out12, out21x21, out6x6 = out
                     loss1 = self.loss_weights['42'] * self.loss_func(out42, y42.float())
@@ -215,7 +218,7 @@ class Processor(Initializer):
                 num_sample += x.size(0)
                 if self.args.dataset_args['subset'] == 'binary':
                     # Calculating Recognition Accuracies
-                    reco_top1 = out.max(1)[1]
+                    reco_top1 = out[-1].max(1)[1]
                     num_top1 += reco_top1.eq(y).sum().item()
 
                     # Calculating Balanced Accuracy
@@ -285,7 +288,7 @@ class Processor(Initializer):
 
             all_preds = {'42': preds42.long().tolist(), '12': preds12.long().tolist(), '21x21': preds21x21.long().tolist(), '6x6': preds6x6.long().tolist()}
             kwargs = {'average': 'samples'}
-            visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            # visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
             json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
@@ -310,7 +313,7 @@ class Processor(Initializer):
             if save_score:
                 return bacc_top1, acc_top1, score
             else:
-                return bacc_top1, acc_top1, cm
+                return bacc_top1, acc_top1, cm.tolist()
         elif self.args.dataset_args['subset'] == 'signature':
             if save_score:
                 return test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, score
@@ -341,14 +344,19 @@ class Processor(Initializer):
         else:
             # Resuming
             start_epoch = 0
-            best_state = {'jaccard42': 0, 'jaccard12': 0, 'jaccard21x21': 0, 'jaccard6x6': 0, 'best_epoch': 0}
+            if self.args.dataset_args['subset'] == 'binary':
+                best_state = {'bacc_top1': 0, 'acc_top1': 0, 'cm': 0, 'best_epoch': 0}
+            else:
+                best_state = {'jaccard42': 0, 'jaccard12': 0, 'jaccard21x21': 0, 'jaccard6x6': 0, 'best_epoch': 0}
             if self.args.resume:
                 logging.info('Loading checkpoint ...')
-                checkpoint = U.load_checkpoint(self.args.work_dir, self.args.dataset_args.subset)
+                print(self.args.work_dir)
+                print(self.model_name)
+                checkpoint = U.load_checkpoint(self.args.work_dir, self.args.dataset_args['subset'])
                 self.model.module.load_state_dict(checkpoint['model'])
-                self.optimizer.load_state_dict(checkpoint['optimizer'])
-                self.scheduler.load_state_dict(checkpoint['scheduler'])
-                start_epoch = checkpoint['epoch']
+                # self.optimizer.load_state_dict(checkpoint['optimizer'])
+                # self.scheduler.load_state_dict(checkpoint['scheduler'])
+                # start_epoch = checkpoint['epoch']
                 best_state.update(checkpoint['best_state'])
                 self.global_step = start_epoch * len(self.train_loader)
                 logging.info('Start epoch: {}'.format(start_epoch + 1))
@@ -389,7 +397,9 @@ class Processor(Initializer):
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))
                 U.save_checkpoint(
-                    self.model.module.state_dict(), self.optimizer.state_dict(), self.scheduler.state_dict(),
+                    self.model.module.state_dict(),
+                    self.optimizer.state_dict(),
+                    self.scheduler.state_dict(),
                     epoch + 1, best_state, is_best, self.args.work_dir, self.save_dir, self.model_name
                 )
                 if self.args.dataset_args['subset'] == 'binary':

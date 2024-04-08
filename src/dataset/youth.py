@@ -14,6 +14,8 @@ class Youth(CustomDataset):
         self.fold = fold
         self.subset = subset
         path = os.path.join(root_folder, subset)
+        if not os.path.exists(os.path.join(path, 'all', annot_file_name)):
+            annot_file_name = "pose_detections.json"
         if subset == 'binary':
             self.prepare_sets(path, annot_file_name)
         elif subset == 'signature':
@@ -127,16 +129,21 @@ class Youth(CustomDataset):
             set_splits = json.load(f)
             set_splits['trainval'] = set_splits['train'] + set_splits['val']
             data = pd.DataFrame(self.read_data(os.path.join(path, "all", annot_file_name)))
+            data['subject'] = data['crop_path'].apply(lambda x: x.split('/')[-2])
+            data['frame'] = data['crop_path'].apply(lambda x: x.split('/')[-1])
             for _set in ['train', 'val', 'trainval', 'test']:
                 data_subset = data[data['crop_path'].str.contains('|'.join(set_splits[_set]))]
                 set_path = os.path.join(path, _set)
                 os.makedirs(set_path)
-                data_subset.to_json(os.path.join(set_path, "pose_detections_identity_fixed.json"))
+                data_subset.to_json(os.path.join(set_path, annot_file_name))
 
     def fill_no_dets(self):
-        self.data = [(np.zeros((2, 17, 3)), item[1]) if len(item[0]) == 0
-                     else ((np.pad(item[0], [(0, 1), (0, 0), (0, 0)]), item[1])
+        self.data = [(np.zeros((2, 17, 3)), item[1], item[2]) if len(item[0]) == 0
+                     else ((np.pad(item[0], [(0, 1), (0, 0), (0, 0)]), item[1], item[2])
                            if len(item[0]) == 1 else item) for item in self.data]
+
+    def remove_no_dets(self):
+        self.data = [item for item in self.data if len(item[0]) == 2]
 
     def convert_to_flickr(self):
         self.data = [{key: self.data[key][item] for key in self.data} for item in self.data['preds']]

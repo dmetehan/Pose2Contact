@@ -17,9 +17,10 @@ class CustomDataset(Dataset):
         self.data = self.read_data(os.path.join(root_folder, phase, annot_file_name))
         self.convert_to_flickr()
         self.remove_ambiguous()
-        self.format_data(normalize=True)
-        # self.fill_no_dets()  # not necessary anymore because no detection samples are discarded
-        # TODO: Add normalization of the coordinates to [0, 1]
+        self.format_data(normalize=False)
+        if self.subset == 'binary':
+            # self.fill_no_dets()
+            self.remove_no_dets()
         self.datashape = [2, 17, 3]
 
     def remove_ambiguous(self):
@@ -27,7 +28,9 @@ class CustomDataset(Dataset):
 
     def format_data(self, normalize=False):
         if self.subset == 'binary':
-            self.data = [(np.array(self.data[d]['preds']), int(int(self.data[d]['contact_type']) > 0)) for d in range(len(self.data))]
+            self.data = [(np.array(self.data[d]['preds']),
+                          int(int(self.data[d]['contact_type']) > 0),
+                          (self.data[d]['subject'], self.data[d]['frame'])) for d in range(len(self.data))]
         elif self.subset == 'signature':
             self.data = [(np.array(self.data[d]['preds']) if not normalize else self.normalize_preds(self.data[d]['preds']),
                           (self.onehot_segmentation(self.data[d]['seg21_adult'], self.data[d]['seg21_child'], res=21),
@@ -76,7 +79,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
         """
         :param index:
-        :return: a tuple of data [(2,17,3) numpy array] and a label [int]
+        :return: a tuple of data [(2,17,3) numpy array] and a label [int] and a tuple metadata (subject, frame)
         """
         return self.data[index]
 
@@ -84,4 +87,7 @@ class CustomDataset(Dataset):
         pass
 
     def fill_no_dets(self):
+        pass
+
+    def remove_no_dets(self):
         pass

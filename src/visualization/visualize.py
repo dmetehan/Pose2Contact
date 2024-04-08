@@ -1,6 +1,8 @@
 import json
 import logging
 import os.path
+from collections import defaultdict
+
 import cv2
 import torch
 import numpy as np
@@ -64,16 +66,24 @@ def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
 def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs):
     os.makedirs(save_dir, exist_ok=True)
     sample_scores = {key: [] for key in ["42", "21x21"]}
+    subj_scores = {key: defaultdict(list) for key in ["42", "21x21"]}
     for key in sample_scores:
         fig = plt.figure(figsize=(16, 16))
         plt.title(f"{key} Task")
-        for sample_gt, sample_pred in zip(gts[key], preds[key]):
-            sample_scores[key].append(eval_func([sample_gt], [sample_pred], **kwargs))
+        for sample_gt, sample_pred, subj in zip(gts[key], preds[key], all_subjects):
+            cur_score = eval_func([sample_gt], [sample_pred], **kwargs)
+            subj_scores[key][subj].append(cur_score)
+        avg_scores = {subj: np.mean(subj_scores[key][subj]) for subj in subj_scores[key]}
+        avg_scores_sorted = dict(sorted(avg_scores.items(), key=lambda item: item[1], reverse=True))
+        all_subjects_ordered = []
+        for subj in avg_scores_sorted:
+            sample_scores[key] += subj_scores[key][subj]
+            all_subjects_ordered += [subj for _ in subj_scores[key][subj]]
         plt.bar(range(len(sample_scores[key])), sample_scores[key], label=key)
-        div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj] + [len(all_subjects) - 1]
+        div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj] + [len(all_subjects_ordered) - 1]
         plt.xticks(div_locs, ['' for _ in div_locs], minor=False)
         plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
-                   [all_subjects[0]] + [subj for i, subj in enumerate(all_subjects[1:]) if all_subjects[i] != subj],
+                   [all_subjects_ordered[0]] + [subj for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj],
                    minor=True, rotation=90)
         plt.grid()
         plt.legend()

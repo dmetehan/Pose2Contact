@@ -26,9 +26,9 @@ def get_current_timestamp():
 
 def load_checkpoint(work_dir, model_name='resume', subset='binary'):
     if model_name == 'resume':
-        file_name = '{}/checkpoint.pth.tar'.format(work_dir)
+        file_name = '{}/{}/checkpoint.pth.tar'.format(work_dir, subset)
     elif model_name == 'debug':
-        file_name = '{}/temp/debug.pth.tar'.format(work_dir)
+        file_name = '{}/{}/temp/debug.pth.tar'.format(work_dir, subset)
     else:
         dirs, accs = {}, {}
         # work_dir = '{}/{}'.format(work_dir, model_name)

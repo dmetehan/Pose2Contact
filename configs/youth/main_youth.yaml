@@ -9,16 +9,16 @@ no_progress_bar: False
 
 # Data Loader
 # flickr, youth
-dataset: youth_signature
+dataset: youth
 dataset_args:
-  subset: signature
-  trainset: train
+  subset: binary
+  trainset: trainval
   evalset: test
   graph: mutual
   labeling: spatial
   processing: symmetry
-  train_batch_size: 32
-  eval_batch_size: 32
+  train_batch_size: 64
+  eval_batch_size: 64
   num_frame: 1
   transform: False
   crop: True
@@ -32,16 +32,6 @@ model_args:
   block_structure: m19
   reduct_ratio: 2
   bias: True
-  loss_weights:
-    '12': 0.05
-    21x21: 0.7
-    '42': 0.15
-    6x6: 0.1
-  multilabel_thresh:
-    '12': 0.25
-    21x21: 0.0625
-    '42': 0.2
-    6x6: 0.125
 
 
 # Optimizer

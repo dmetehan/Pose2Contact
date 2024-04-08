@@ -58,6 +58,7 @@ class TPGCN(nn.Module):
         self.fcn12 = nn.Linear(512, 12)
         self.fcn21x21 = nn.Linear(512, 21*21)
         self.fcn6x6 = nn.Linear(512, 6*6)
+        # self.fcn_classifier = nn.Linear(512, 2)
 
         # init parameters
         init_param(self.modules())
@@ -111,6 +112,7 @@ class TPGCN(nn.Module):
         x12 = self.fcn12(x)
         x21x21 = self.fcn21x21(x)
         x6x6 = self.fcn6x6(x)
+        # classification = self.fcn_classifier(x)
 
         # x21x21 = self.fcn21x21(x)
         # x42 = torch.cat((x21x21.view(-1, 21, 21).max(dim=1).values, x21x21.view(-1, 21, 21).max(dim=2).values), dim=1)
@@ -127,7 +129,7 @@ class TPGCN(nn.Module):
         # x42 = torch.cat((xadult21, xchild21), dim=1)
         # x12 = torch.cat((xadult6, xchild6), dim=1)
 
-        logging.debug(f"shape of the output is {x.shape}")
+        # logging.debug(f"shape of the output is {x.shape}")
         logging.debug(f"shape of the feature is {features.shape}")
 
         return (x42, x12, x21x21, x6x6), features

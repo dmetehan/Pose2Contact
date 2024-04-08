@@ -33,15 +33,15 @@ model_args:
   reduct_ratio: 2
   bias: True
   loss_weights:
-    '12': 0.05
-    21x21: 0.7
-    '42': 0.15
-    6x6: 0.1
+    '42': 0.5
+    '12': 0.00
+    21x21: 0.5
+    6x6: 0.0
   multilabel_thresh:
-    '12': 0.25
-    21x21: 0.0625
-    '42': 0.2
-    6x6: 0.125
+    '42': 0.3
+    '12': 0.5
+    21x21: 0.1
+    6x6: 0.2
 
 
 # Optimizer
@@ -49,12 +49,12 @@ model_args:
 optimizer: SGD
 optimizer_args:
   SGD:
-    lr: 0.1
+    lr: 0.02
     momentum: 0.9
     nesterov: True
     weight_decay: 0.0002
   Adam:
-    lr: 0.1
+    lr: 0.02
     betas: [0.9,0.99]
     weight_decay: 0.0002
 

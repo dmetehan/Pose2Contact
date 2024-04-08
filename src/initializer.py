@@ -118,8 +118,8 @@ class Initializer:
 
     def init_model(self):
         # TODO: Write multilabel threshold to the output files
-        self.loss_weights = self.args.model_args['loss_weights']
-        self.multilabel_thresh = self.args.model_args['multilabel_thresh']
+        self.loss_weights = self.args.model_args['loss_weights'] if 'loss_weights' in self.args.model_args else None
+        self.multilabel_thresh = self.args.model_args['multilabel_thresh'] if 'multilabel_thresh' in self.args.model_args else None
         kwargs = {
             'data_shape': self.data_shape,
             'num_class': self.num_class,
@@ -168,8 +168,10 @@ class Initializer:
 
     def init_loss_func(self):
         logging.info(f"Initializing loss function")
-        # self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
         # self.loss_func = IoULoss().to(self.device)
         # self.loss_func = IoUBCELoss().to(self.device)  # best training loss
-        self.loss_func = MultiLabelSoftMarginLoss().to(self.device)
+        if self.args.dataset_args['subset'] == 'binary':
+            self.loss_func = torch.nn.BCEWithLogitsLoss().to(self.device)
+        else:
+            self.loss_func = MultiLabelSoftMarginLoss().to(self.device)
         logging.info('Loss function: {}'.format(self.loss_func.__class__.__name__))
