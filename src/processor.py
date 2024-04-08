@@ -290,6 +290,7 @@ class Processor(Initializer):
             kwargs = {'average': 'samples'}
             # visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            visualize.vis_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
             save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
             json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
             logging.info('Test Jaccard: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}, Mean loss:{:.4f}'.format(

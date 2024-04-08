@@ -92,6 +92,49 @@ def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs
         plt.close(fig)
 
 
+def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
+    setting_annotations = {}
+    setting_annotations_file = "src/visualization/interaction_settings.txt"
+    all_labels = ['p', 's', 'h', 'l', 't', 'c']
+    if os.path.exists(setting_annotations_file):
+        print("reading annotations")
+        with open(setting_annotations_file, "r") as f:
+            for line in f:
+                subject, frame, label = line.split(",")
+                setting_annotations[(subject.strip(), frame.strip())] = label.strip()
+    save_dir = os.path.join(save_dir, "interaction_settings")
+    os.makedirs(save_dir, exist_ok=True)
+    for label in all_labels:
+        sample_scores = {key: [] for key in ["42", "21x21"]}
+        subj_scores = {key: defaultdict(list) for key in ["42", "21x21"]}
+        for key in sample_scores:
+            fig = plt.figure(figsize=(16, 16))
+            plt.title(f"{key} Task")
+            for sample_gt, sample_pred, meta in zip(gts[key], preds[key], all_meta):
+                subj, frame = meta[0][0], meta[1][0]
+                if setting_annotations[(subj, frame)] == label:
+                    cur_score = eval_func([sample_gt], [sample_pred], **kwargs)
+                    subj_scores[key][subj].append(cur_score)
+            avg_scores = {subj: np.mean(subj_scores[key][subj]) for subj in subj_scores[key]}
+            avg_scores_sorted = dict(sorted(avg_scores.items(), key=lambda item: item[1], reverse=True))
+            all_subjects_ordered = []
+            for subj in avg_scores_sorted:
+                sample_scores[key] += subj_scores[key][subj]
+                all_subjects_ordered += [subj for _ in subj_scores[key][subj]]
+            plt.bar(range(len(sample_scores[key])), sample_scores[key], label=key)
+            div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj] + [len(all_subjects_ordered) - 1]
+            plt.xticks(div_locs, ['' for _ in div_locs], minor=False)
+            plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
+                       [all_subjects_ordered[0]] + [subj for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj],
+                       minor=True, rotation=90)
+            plt.ylim((0, 0.8))
+            plt.grid()
+            plt.legend()
+            plt.savefig(os.path.join(save_dir, f'per_setting_score_{label}_{key}.png'))
+            # plt.show()
+            plt.close(fig)
+
+
 def _init_heatmaps():
     people = ['adult', 'child']
     sketches = {pers: cv2.imread('data/rid_base.png') for pers in people}
