@@ -288,7 +288,7 @@ class Processor(Initializer):
 
             all_preds = {'42': preds42.long().tolist(), '12': preds12.long().tolist(), '21x21': preds21x21.long().tolist(), '6x6': preds6x6.long().tolist()}
             kwargs = {'average': 'samples'}
-            # visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             visualize.vis_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
             save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}

@@ -21,7 +21,6 @@ def vis_touch_region_counts(gts, preds, all_subjects, eval_func, save_dir, **kwa
     reg_counts_gts = {key: [] for key in ["42", "21x21"]}
     for key in sample_scores:
         plt.figure(figsize=(16, 16))
-        plt.title(f"{key} Task")
         for sample_gt, sample_pred in zip(gts[key], preds[key]):
             sample_scores[key].append(eval_func([sample_gt], [sample_pred], **kwargs))
             reg_counts_gts[key].append(np.sum(sample_gt))
@@ -32,7 +31,7 @@ def vis_touch_region_counts(gts, preds, all_subjects, eval_func, save_dir, **kwa
         all_scores = np.array(sample_scores[key])[sorted_indices]
         reg_cnts_gts = np.array(reg_counts_gts[key])[sorted_indices]
         reg_cnts_preds = np.array(reg_counts_preds[key])[sorted_indices]
-        plt.scatter(reg_cnts_gts, reg_cnts_preds, label="pred counts", marker="o")
+        plt.scatter(reg_cnts_gts, reg_cnts_preds, marker="o")
         # fitting a linear regression line
         m, b = np.polyfit(reg_cnts_gts, reg_cnts_preds, 1)
         correlation = np.corrcoef(reg_cnts_gts, reg_cnts_preds)
@@ -41,11 +40,25 @@ def vis_touch_region_counts(gts, preds, all_subjects, eval_func, save_dir, **kwa
         plt.plot(reg_cnts_gts, m * reg_cnts_gts + b)
         plt.xlabel("GT region counts")
         plt.ylabel("Predicted region counts")
-        # plt.scatter(reg_cnts_gts, all_scores, label="scores", marker="+")
         plt.grid()
-        plt.legend()
+        plt.title(f"{key} Task - GT vs Predicted Region counts")
+        plt.savefig(os.path.join(save_dir, f'reg_count_{key}.png'))
+        # plt.show()
+        plt.clf()
+
+        plt.scatter(reg_cnts_gts, all_scores, marker="o")
+        # fitting a linear regression line
+        m, b = np.polyfit(reg_cnts_gts, all_scores, 1)
+        correlation = np.corrcoef(reg_cnts_gts, all_scores)
+        print("Pearson correlation coefficient:", correlation)
+        # adding the regression line to the scatter plot
+        plt.plot(reg_cnts_gts, m * reg_cnts_gts + b)
+        plt.xlabel("GT region counts")
+        plt.ylabel("Jaccard Scores")
+        plt.grid()
+        plt.title(f"{key} Task - GT Region counts vs Jaccard Scores")
         plt.savefig(os.path.join(save_dir, f'reg_count_score_{key}.png'))
-        plt.show()
+        # plt.show()
 
 
 def vis_threshold_eval(gts, scores, eval_func, epoch, save_dir, **kwargs):
@@ -95,7 +108,8 @@ def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs
 def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
     setting_annotations = {}
     setting_annotations_file = "src/visualization/interaction_settings.txt"
-    all_labels = ['p', 's', 'h', 'l', 't', 'c']
+    all_labels = {'p': "picking up", 's': "supporting", 'h': "parent holding", 'l': "on the lap", 't': "other touch",
+                  'c': "child holding"}
     if os.path.exists(setting_annotations_file):
         print("reading annotations")
         with open(setting_annotations_file, "r") as f:
@@ -103,13 +117,13 @@ def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
                 subject, frame, label = line.split(",")
                 setting_annotations[(subject.strip(), frame.strip())] = label.strip()
     save_dir = os.path.join(save_dir, "interaction_settings")
-    os.makedirs(save_dir, exist_ok=True)
     for label in all_labels:
         sample_scores = {key: [] for key in ["42", "21x21"]}
         subj_scores = {key: defaultdict(list) for key in ["42", "21x21"]}
         for key in sample_scores:
+            cur_save_dir = os.path.join(save_dir, key)
+            os.makedirs(cur_save_dir, exist_ok=True)
             fig = plt.figure(figsize=(16, 16))
-            plt.title(f"{key} Task")
             for sample_gt, sample_pred, meta in zip(gts[key], preds[key], all_meta):
                 subj, frame = meta[0][0], meta[1][0]
                 if setting_annotations[(subj, frame)] == label:
@@ -129,8 +143,8 @@ def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
                        minor=True, rotation=90)
             plt.ylim((0, 0.8))
             plt.grid()
-            plt.legend()
-            plt.savefig(os.path.join(save_dir, f'per_setting_score_{label}_{key}.png'))
+            plt.title(f"{key} Task - '{all_labels[label]}' jaccard scores")
+            plt.savefig(os.path.join(cur_save_dir, f'per_setting_score_{label}_{key}.png'))
             # plt.show()
             plt.close(fig)
 
