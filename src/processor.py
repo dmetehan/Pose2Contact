@@ -288,11 +288,11 @@ class Processor(Initializer):
 
             all_preds = {'42': preds42.long().tolist(), '12': preds12.long().tolist(), '21x21': preds21x21.long().tolist(), '6x6': preds6x6.long().tolist()}
             kwargs = {'average': 'samples'}
-            visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
-            visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
-            visualize.vis_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
-            save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
-            json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
+            # visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            # visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
+            # visualize.vis_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
+            # save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
+            # json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
             logging.info('Test Jaccard: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}, Mean loss:{:.4f}'.format(
                 test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, eval_loss
             ))
@@ -389,7 +389,7 @@ class Processor(Initializer):
                             best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
                     elif self.args.dataset_args['subset'] == 'signature':
                         jaccard42, jaccard12, jaccard21x21, jaccard6x6 = self.eval(epoch=epoch)
-                        if jaccard21x21 > best_state['jaccard21x21']:
+                        if jaccard6x6 > best_state['jaccard6x6']:  # TODO: Currently focusing on 6x6
                             is_best = True
                             best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12,
                                                'jaccard21x21': jaccard21x21, 'jaccard6x6': jaccard6x6,

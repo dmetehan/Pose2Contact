@@ -25,15 +25,15 @@ def random_loss_weights_generator():
 
 def decided_weights_generator():
     # Loss weights decided during the meeting!
-    decided_loss_weights = [{'42': 0.25, '12': 0.25, '21x21': 0.25, '6x6': 0.25},
-                            {'42': 0.35, '12': 0.15, '21x21': 0.35, '6x6': 0.15},
-                            {'42': 0.45, '12': 0.05, '21x21': 0.45, '6x6': 0.05},
-                            {'42': 0.15, '12': 0.15, '21x21': 0.35, '6x6': 0.35},
-                            {'42': 0.05, '12': 0.05, '21x21': 0.45, '6x6': 0.45},
-                            {'42': 0, '12': 0, '21x21': 1, '6x6': 0},
-                            {'42': 0.5, '12': 0, '21x21': 0.5, '6x6': 0},
-                            {'42': 0, '12': 0.5, '21x21': 0.5, '6x6': 0},
-                            {'42': 0, '12': 0, '21x21': 0.5, '6x6': 0.5}]
+    # decided_loss_weights = [{'12': 0, '6x6': 1, '42': 0, '21x21': 0},
+    #                         {'12': 0, '6x6': 0, '42': 0, '21x21': 1},
+    #                         {'12': 0, '6x6': 0.5, '42': 0, '21x21': 0.5},
+    #                         {'12': 0.5, '6x6': 0.5, '42': 0, '21x21': 0},
+    #                         {'12': 0, '6x6': 0, '42': 0.5, '21x21': 0.5},
+    #                         {'12': 0.25, '6x6': 0.25, '42': 0.25, '21x21': 0.25}]
+    # focusing on 6x6
+    decided_loss_weights = [{'12': 0, '6x6': 1, '42': 0, '21x21': 0},
+                            {'12': 0.5, '6x6': 0.5, '42': 0, '21x21': 0}]
     for loss_weights in decided_loss_weights:
         yield loss_weights
 
@@ -65,9 +65,11 @@ def read_results(out_file):
 
 
 def analyze_results(results):
-    for key in ['21+21', '6+6', '21x21', '6x6']:
+    ordered_keys = ['6+6', '6x6', '21+21', '21x21']
+    ordered_keys_2 = ['12', '6x6', '42', '21x21']
+    for key in ordered_keys:
         print(f"{key:^6s}", end='&\t')
-    for key in ['21+21', '6+6', '21x21', '6x6']:
+    for key in ordered_keys:
         print(f"{key:^14s}", end='&\t')
     print()
     for res in results:
@@ -77,10 +79,11 @@ def analyze_results(results):
             for key in combined:
                 combined[key].append(one_result[key])
         # print(params)
-        for key in params:
+        for key in ordered_keys_2:
             print(f"{f'{params[key]}':^6s}", end='&\t')
-        for key in combined:
-            print(f"{f'{np.mean(combined[key])*100:.2f}':>6s} ({np.std(combined[key])*100:.2f})", end='&\t')
+        for key in ordered_keys_2:
+            key = f'jaccard{key}'
+            print(f"{f'{np.mean(combined[key])*100:.2f}':>6s} ({np.std(combined[key])*100:.2f})", end=' &\t')
         print()
 
 
