@@ -19,6 +19,13 @@ class TPGCN(nn.Module):
         :param A:
         :param kwargs:
         """
+        print(f"module: {module}"
+              f"structure: {structure}"
+              f"spatial_block: {spatial_block}"
+              f"temporal_block: {temporal_block}"
+              f"data_shape: {data_shape}"
+              f"num_class: {num_class}"
+              f"A: {A}")
         self.num_class = num_class
         super(TPGCN, self).__init__()
         # logging.info(f"data_shape: {data_shape}")
