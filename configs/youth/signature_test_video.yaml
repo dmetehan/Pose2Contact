@@ -11,15 +11,15 @@ no_progress_bar: False
 # flickr, youth
 dataset: youth_signature
 dataset_args:
-  fold: 'fold3'
+  fold: 'fold99'
   subset: signature
   trainset: train
-  evalset: val
+  evalset: test
   graph: mutual
   labeling: spatial
   processing: symmetry
   train_batch_size: 32
-  eval_batch_size: 1
+  eval_batch_size: 32
   num_frame: 1
   transform: False
   crop: True

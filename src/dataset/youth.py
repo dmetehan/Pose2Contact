@@ -31,15 +31,16 @@ class Youth(CustomDataset):
             self.divide_data_into_folds(path, data_file_name, folds_file_name)
         with open(os.path.join(path, 'all', folds_file_name)) as f:
             folds = json.load(f)
-            set_splits = {'train': [], 'val': [], 'test': []}
             fold_division = {0: {'test': 0, 'val': 0, 'train': [1, 2, 3, 4]},
-                             1: {'test': 0, 'val': 1, 'train': [2, 3, 4]},
-                             2: {'test': 0, 'val': 2, 'train': [1, 3, 4]},
-                             3: {'test': 0, 'val': 3, 'train': [1, 2, 4]},
-                             4: {'test': 0, 'val': 4, 'train': [1, 2, 3]}}
-            for f in range(len(folds)):
-                set_splits['test'] = folds[fold_division[f]['test']]
-                set_splits['val'] = folds[fold_division[f]['val']]
+                             1: {'test': 1, 'val': 1, 'train': [2, 3, 4]},
+                             2: {'test': 2, 'val': 2, 'train': [1, 3, 4]},
+                             3: {'test': 3, 'val': 3, 'train': [1, 2, 4]},
+                             4: {'test': 4, 'val': 4, 'train': [1, 2, 3]},
+                             99: {'test': 4, 'val': 4, 'train': [0, 1, 2, 3]}}
+            #                   99 is special fold for the video with every second processed
+            #                   it's (B43691) in the 4th fold so that the network should be trained on all the other folds.
+            for f in range(len(folds)):  # [99]: #
+                set_splits = {'train': [], 'val': folds[fold_division[f]['val']], 'test': folds[fold_division[f]['test']]}
                 for train_fold in fold_division[f]['train']:
                     set_splits['train'] += folds[train_fold]
                 data = pd.DataFrame(self.read_data(os.path.join(path, "all", data_file_name)))
