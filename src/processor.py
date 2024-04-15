@@ -389,11 +389,20 @@ class Processor(Initializer):
                             best_state.update({'bacc_top1': bacc_top1, 'acc_top1': acc_top1, 'cm': cm, 'best_epoch': epoch + 1})
                     elif self.args.dataset_args['subset'] == 'signature':
                         jaccard42, jaccard12, jaccard21x21, jaccard6x6 = self.eval(epoch=epoch)
-                        if jaccard6x6 > best_state['jaccard6x6']:  # TODO: Currently focusing on 6x6
-                            is_best = True
-                            best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12,
-                                               'jaccard21x21': jaccard21x21, 'jaccard6x6': jaccard6x6,
-                                               'best_epoch': epoch + 1})
+                        if self.args.model_args['loss_weights']['21x21'] == 0:
+                            if jaccard6x6 > best_state['jaccard6x6']:
+                                print("best result in 6x6")
+                                is_best = True
+                                best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12,
+                                                   'jaccard21x21': jaccard21x21, 'jaccard6x6': jaccard6x6,
+                                                   'best_epoch': epoch + 1})
+                        else:
+                            if jaccard21x21 > best_state['jaccard21x21']:
+                                print("best result in 21x21")
+                                is_best = True
+                                best_state.update({'jaccard42': jaccard42, 'jaccard12': jaccard12,
+                                                   'jaccard21x21': jaccard21x21, 'jaccard6x6': jaccard6x6,
+                                                   'best_epoch': epoch + 1})
 
                 # Saving Model
                 logging.info('Saving model for epoch {}/{} ...'.format(epoch + 1, self.max_epoch))

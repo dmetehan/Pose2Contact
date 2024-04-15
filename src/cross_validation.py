@@ -25,15 +25,13 @@ def random_loss_weights_generator():
 
 def decided_weights_generator():
     # Loss weights decided during the meeting!
-    # decided_loss_weights = [{'12': 0, '6x6': 1, '42': 0, '21x21': 0},
-    #                         {'12': 0, '6x6': 0, '42': 0, '21x21': 1},
-    #                         {'12': 0, '6x6': 0.5, '42': 0, '21x21': 0.5},
-    #                         {'12': 0.5, '6x6': 0.5, '42': 0, '21x21': 0},
-    #                         {'12': 0, '6x6': 0, '42': 0.5, '21x21': 0.5},
-    #                         {'12': 0.25, '6x6': 0.25, '42': 0.25, '21x21': 0.25}]
+    decided_loss_weights = [{'12': 0, '6x6': 0, '42': 0, '21x21': 1},
+                            {'12': 0, '6x6': 0.5, '42': 0, '21x21': 0.5},
+                            {'12': 0, '6x6': 0, '42': 0.5, '21x21': 0.5},
+                            {'12': 0.25, '6x6': 0.25, '42': 0.25, '21x21': 0.25}]
     # focusing on 6x6
-    decided_loss_weights = [{'12': 0, '6x6': 1, '42': 0, '21x21': 0},
-                            {'12': 0.5, '6x6': 0.5, '42': 0, '21x21': 0}]
+    # decided_loss_weights = [{'12': 0, '6x6': 1, '42': 0, '21x21': 0},
+    #                         {'12': 0.5, '6x6': 0.5, '42': 0, '21x21': 0}]
     for loss_weights in decided_loss_weights:
         yield loss_weights
 
