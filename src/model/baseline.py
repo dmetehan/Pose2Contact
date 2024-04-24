@@ -4,6 +4,7 @@ from sklearn.dummy import DummyClassifier
 
 def get_baseline_predictors(all_labels):
     all_strategies = ["most_frequent", "prior", "stratified", "uniform", "constant"]
+    all_strategies = ["uniform"]
     all_clfs = {key: {strategy: DummyClassifier(strategy=strategy,
                                                 constant=[1 for _ in range(eval(key.replace('x', '*')))]) for strategy in all_strategies} for key in all_labels}
     for key in all_clfs:

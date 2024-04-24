@@ -291,8 +291,15 @@ class Processor(Initializer):
             # visualize.vis_touch_region_counts(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             # visualize.vis_per_sample_score(all_eval_labels, all_preds, all_subjects, jaccard_score, self.save_dir, **kwargs)
             # visualize.vis_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
-            # save_preds = {'preds': all_preds, 'labels': all_eval_labels, 'metadata': all_meta}
-            # json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
+
+            # visualize.vis_box_and_whiskers_per_setting_score(all_eval_labels, all_preds, all_meta, jaccard_score, self.save_dir, **kwargs)
+
+            save_preds = {'preds': all_preds,
+                          'labels': all_eval_labels,
+                          'scores': {'42': pred_scores42, '12': pred_scores12, '21x21': pred_scores21x21, '6x6': pred_scores6x6},
+                          'metadata': all_meta}
+            json.dump(save_preds, open(os.path.join(self.save_dir, "save_preds.json"), 'w'))
+
             logging.info('Test Jaccard: 42: {:.2%}, 12: {:.2%}, 21x21: {:.2%}, 6x6: {:.2%}, Mean loss:{:.4f}'.format(
                 test_jaccard42, test_jaccard12, test_jaccard21x21, test_jaccard6x6, eval_loss
             ))

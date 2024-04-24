@@ -105,6 +105,35 @@ def vis_per_sample_score(gts, preds, all_subjects, eval_func, save_dir, **kwargs
         plt.close(fig)
 
 
+def vis_box_and_whiskers_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
+    setting_annotations = {}
+    setting_annotations_file = "src/visualization/interaction_settings.txt"
+    all_labels = {'p': "Picking Kid Up", 's': "Supporting", 'l': "On The Lap"}  # 'h': "parent holding", 't': "other touch", 'c': "child holding"}
+    if os.path.exists(setting_annotations_file):
+        print("reading annotations")
+        with open(setting_annotations_file, "r") as f:
+            for line in f:
+                subject, frame, label = line.split(",")
+                setting_annotations[(subject.strip(), frame.strip())] = label.strip()
+    save_dir = os.path.join(save_dir, "interaction_settings")
+    os.makedirs(save_dir, exist_ok=True)
+    for key in ["12", "6x6", "42", "21x21"]:
+        label_scores = {label: [] for label in all_labels}
+        fig = plt.figure(figsize=(6, 6))
+        for label in all_labels:
+            for sample_gt, sample_pred, meta in zip(gts[key], preds[key], all_meta):
+                subj, frame = meta[0][0], meta[1][0]
+                if setting_annotations[(subj, frame)] == label:
+                    cur_score = eval_func([sample_gt], [sample_pred], **kwargs)
+                    label_scores[label].append(cur_score)
+        plt.boxplot([label_scores[label] for label in label_scores], labels=[all_labels[label] for label in label_scores])
+        plt.grid()
+        plt.title(f"{key} - Jaccard Scores Per Interaction Setting")
+        plt.savefig(os.path.join(save_dir, f'per_setting_score_{label}_{key}.png'))
+        plt.show()
+        plt.close(fig)
+
+
 def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
     setting_annotations = {}
     setting_annotations_file = "src/visualization/interaction_settings.txt"

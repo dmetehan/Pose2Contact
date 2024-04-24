@@ -11,7 +11,7 @@ no_progress_bar: False
 # flickr, youth
 dataset: youth_signature
 dataset_args:
-  fold: 'fold3'
+  fold: 'fold0'
   subset: signature
   trainset: train
   evalset: val
@@ -34,10 +34,10 @@ model_args:
   reduct_ratio: 2
   bias: True
   loss_weights:
-    '12': 0.5
+    '12': 0
     6x6: 0.5
     '42': 0
-    21x21: 0
+    21x21: 0.5
   multilabel_thresh:
     '12': 0.25
     6x6: 0.125
