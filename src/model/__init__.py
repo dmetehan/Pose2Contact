@@ -3,7 +3,6 @@ from .TPGCN import TPGCN
 from .DoubleTPGCN import DoubleTPGCN
 
 
-
 __models = {
     'TPGCN': TPGCN,
     'DoubleTPGCN': DoubleTPGCN,

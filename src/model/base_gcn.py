@@ -25,7 +25,7 @@ class SpatialBasicBlock(nn.Module):
             self.A = nn.Parameter(A[:max_graph_distance+1], requires_grad=True)
         else:
             self.register_buffer('A', A[:max_graph_distance+1])
-        self.edge = nn.Parameter(torch.ones_like(A[:max_graph_distance+1]),requires_grad=edge_importance)
+        self.edge = nn.Parameter(torch.ones_like(A[:max_graph_distance+1]), requires_grad=edge_importance)
 
     def forward(self, x):
 

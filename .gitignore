@@ -170,3 +170,5 @@ cython_debug/
 /.idea/inspectionProfiles/profiles_settings.xml
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/vcs.xml
+/src/visualization/test_videos/B00432/crops/
+/src/visualization/test_videos/B50284/crops/

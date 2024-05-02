@@ -43,7 +43,7 @@ class Graph:
             center = 0
         else:
             logging.info('')
-            logging.error('Error: Do NOT exist this dataset: {}!'.format(self.dataset))
+            logging.error('Error: Dataset does NOT exist: {}!'.format(self.dataset))
             raise ValueError()
         self_link = [(i, i) for i in range(num_node)]
         edge = self_link + neighbor_link

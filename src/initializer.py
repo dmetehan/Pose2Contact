@@ -124,7 +124,7 @@ class Initializer:
             'data_shape': self.data_shape,
             'num_class': self.num_class,
             'A': torch.Tensor(self.A),
-            'parts': self.parts,
+            'parts': self.parts
         }
         self.model = model.create(self.args.model_type, **self.args.model_args, **kwargs)
         # self.model = model.create_model(torch.Tensor(self.A))
