@@ -12,6 +12,102 @@ from matplotlib.colors import ListedColormap
 from sklearn import manifold, datasets
 from sklearn.decomposition import TruncatedSVD
 import plotly.express as px
+from matplotlib.patches import Circle, RegularPolygon
+from matplotlib.path import Path
+from matplotlib.projections import register_projection
+from matplotlib.projections.polar import PolarAxes
+from matplotlib.spines import Spine
+from matplotlib.transforms import Affine2D
+
+
+def radar_factory(num_vars, frame='circle'):
+    """
+    Create a radar chart with `num_vars` axes.
+
+    This function creates a RadarAxes projection and registers it.
+
+    Parameters
+    ----------
+    num_vars : int
+        Number of variables for radar chart.
+    frame : {'circle', 'polygon'}
+        Shape of frame surrounding axes.
+
+    """
+    # calculate evenly-spaced axis angles
+    theta = np.linspace(0, 2*np.pi, num_vars, endpoint=False)
+
+    class RadarTransform(PolarAxes.PolarTransform):
+
+        def transform_path_non_affine(self, path):
+            # Paths with non-unit interpolation steps correspond to gridlines,
+            # in which case we force interpolation (to defeat PolarTransform's
+            # autoconversion to circular arcs).
+            if path._interpolation_steps > 1:
+                path = path.interpolated(num_vars)
+            return Path(self.transform(path.vertices), path.codes)
+
+    class RadarAxes(PolarAxes):
+
+        name = 'radar'
+        PolarTransform = RadarTransform
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            # rotate plot such that the first axis is at the top
+            self.set_theta_zero_location('N')
+
+        def fill(self, *args, closed=True, **kwargs):
+            """Override fill so that line is closed by default"""
+            return super().fill(closed=closed, *args, **kwargs)
+
+        def plot(self, *args, **kwargs):
+            """Override plot so that line is closed by default"""
+            lines = super().plot(*args, **kwargs)
+            for line in lines:
+                self._close_line(line)
+
+        def _close_line(self, line):
+            x, y = line.get_data()
+            # FIXME: markers at x[0], y[0] get doubled-up
+            if x[0] != x[-1]:
+                x = np.append(x, x[0])
+                y = np.append(y, y[0])
+                line.set_data(x, y)
+
+        def set_varlabels(self, labels):
+            self.set_thetagrids(np.degrees(theta), labels)
+
+        def _gen_axes_patch(self):
+            # The Axes patch must be centered at (0.5, 0.5) and of radius 0.5
+            # in axes coordinates.
+            if frame == 'circle':
+                return Circle((0.5, 0.5), 0.5)
+            elif frame == 'polygon':
+                return RegularPolygon((0.5, 0.5), num_vars,
+                                      radius=.5, edgecolor="k")
+            else:
+                raise ValueError("Unknown value for 'frame': %s" % frame)
+
+        def _gen_axes_spines(self):
+            if frame == 'circle':
+                return super()._gen_axes_spines()
+            elif frame == 'polygon':
+                # spine_type must be 'left'/'right'/'top'/'bottom'/'circle'.
+                spine = Spine(axes=self,
+                              spine_type='circle',
+                              path=Path.unit_regular_polygon(num_vars))
+                # unit_regular_polygon gives a polygon of radius 1 centered at
+                # (0, 0) but we want a polygon of radius 0.5 centered at (0.5,
+                # 0.5) in axes coordinates.
+                spine.set_transform(Affine2D().scale(.5).translate(.5, .5)
+                                    + self.transAxes)
+                return {'polar': spine}
+            else:
+                raise ValueError("Unknown value for 'frame': %s" % frame)
+
+    register_projection(RadarAxes)
+    return theta
 
 
 def vis_touch_region_counts(gts, preds, all_subjects, eval_func, save_dir, **kwargs):
@@ -134,11 +230,10 @@ def vis_box_and_whiskers_per_setting_score(gts, preds, all_meta, eval_func, save
         plt.close(fig)
 
 
-def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
+def vis_interaction_setting_distribution(gts, all_meta, save_dir):
     setting_annotations = {}
     setting_annotations_file = "src/visualization/interaction_settings.txt"
-    all_labels = {'p': "picking up", 's': "supporting", 'h': "parent holding", 'l': "on the lap", 't': "other touch",
-                  'c': "child holding"}
+    all_labels = {'p': "Picking Kid Up", 's': "Supporting", 'l': "On The Lap"}  # 'h': "parent holding", 't': "other touch", 'c': "child holding"}
     if os.path.exists(setting_annotations_file):
         print("reading annotations")
         with open(setting_annotations_file, "r") as f:
@@ -146,36 +241,41 @@ def vis_per_setting_score(gts, preds, all_meta, eval_func, save_dir, **kwargs):
                 subject, frame, label = line.split(",")
                 setting_annotations[(subject.strip(), frame.strip())] = label.strip()
     save_dir = os.path.join(save_dir, "interaction_settings")
-    for label in all_labels:
-        sample_scores = {key: [] for key in ["42", "21x21"]}
-        subj_scores = {key: defaultdict(list) for key in ["42", "21x21"]}
-        for key in sample_scores:
-            cur_save_dir = os.path.join(save_dir, key)
-            os.makedirs(cur_save_dir, exist_ok=True)
-            fig = plt.figure(figsize=(16, 16))
-            for sample_gt, sample_pred, meta in zip(gts[key], preds[key], all_meta):
+    os.makedirs(save_dir, exist_ok=True)
+    for key in ["12"]:
+        label_scores = {label: [] for label in all_labels}
+        label_distribution = {label: np.zeros(eval(key.replace('x', '*'))) for label in all_labels}
+        for label in all_labels:
+            for sample_gt, meta in zip(gts[key], all_meta):
                 subj, frame = meta[0][0], meta[1][0]
                 if setting_annotations[(subj, frame)] == label:
-                    cur_score = eval_func([sample_gt], [sample_pred], **kwargs)
-                    subj_scores[key][subj].append(cur_score)
-            avg_scores = {subj: np.mean(subj_scores[key][subj]) for subj in subj_scores[key]}
-            avg_scores_sorted = dict(sorted(avg_scores.items(), key=lambda item: item[1], reverse=True))
-            all_subjects_ordered = []
-            for subj in avg_scores_sorted:
-                sample_scores[key] += subj_scores[key][subj]
-                all_subjects_ordered += [subj for _ in subj_scores[key][subj]]
-            plt.bar(range(len(sample_scores[key])), sample_scores[key], label=key)
-            div_locs = [0] + [i+1 for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj] + [len(all_subjects_ordered) - 1]
-            plt.xticks(div_locs, ['' for _ in div_locs], minor=False)
-            plt.xticks([(div_locs[i] + div_locs[i+1]) / 2 for i in range(len(div_locs) - 1)],
-                       [all_subjects_ordered[0]] + [subj for i, subj in enumerate(all_subjects_ordered[1:]) if all_subjects_ordered[i] != subj],
-                       minor=True, rotation=90)
-            plt.ylim((0, 0.8))
-            plt.grid()
-            plt.title(f"{key} Task - '{all_labels[label]}' jaccard scores")
-            plt.savefig(os.path.join(cur_save_dir, f'per_setting_score_{label}_{key}.png'))
-            # plt.show()
-            plt.close(fig)
+                    label_distribution[label] += sample_gt
+
+        theta = radar_factory(eval(key.replace('x', '*'))//2, frame='polygon')
+        fig, axs = plt.subplots(figsize=(14, 4), nrows=1, ncols=3,
+                                subplot_kw=dict(projection='radar'))
+        fig.subplots_adjust(wspace=0.25, hspace=0.20, top=0.85, bottom=0.05)
+
+        colors = ['b', 'r']
+        # Plot the four cases from the example data on separate axes
+        for ax, label in zip(axs.flat, all_labels):
+            ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+            ax.set_title(all_labels[label], weight='bold', size='medium', position=(0.5, 1.1),
+                         horizontalalignment='center', verticalalignment='center')
+            ax.plot(theta, label_distribution[label][[0, 5, 3, 1, 2, 4]], color=colors[0])
+            ax.fill(theta, label_distribution[label][[0, 5, 3, 1, 2, 4]], facecolor=colors[0], alpha=0.25, label='_nolegend_')
+            ax.plot(theta, label_distribution[label][[6, 11, 9, 7, 8, 10]], color=colors[1])
+            ax.fill(theta, label_distribution[label][[6, 11, 9, 7, 8, 10]], facecolor=colors[1], alpha=0.25, label='_nolegend_')
+
+            if key == '12':
+                # ax.set_varlabels(["head", "core", "rleg", "lleg", "rarm", "larm"])
+                ax.set_varlabels(["head", "left arm", "left leg", "core", "right leg", "right arm"])
+
+        # add legend relative to top-left plot
+        labels = ('Parent', 'Infant')
+        legend = axs[0].legend(labels, loc=(0.9, .95), labelspacing=0.1, fontsize='small')
+
+        plt.show()
 
 
 def _init_heatmaps():
@@ -225,7 +325,6 @@ def vis_pred_errors_heatmap(gts, preds, save_dir):
 
 
 def tsne_on_annotations(annots_matrix, perplexity, n_components=2, n_iter=500):
-    # TODO: ADD TEST INFO TO COLOR BASED ON JACCARD SCORE
     if annots_matrix.shape[1] > 50:
         svd = TruncatedSVD(n_components=50, n_iter=50, random_state=42)
         svd.fit(annots_matrix)

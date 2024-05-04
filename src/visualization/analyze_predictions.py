@@ -47,7 +47,7 @@ def remove_no_contact_cases(results):
 
 
 def box_and_whiskers_test_set():
-    with open("src/visualization/save_preds_gcn_adaptive.json") as f:
+    with open("src/visualization/save_preds_gcn.json") as f:
         gcn_results = json.load(f)
     with open("src/visualization/save_preds_resnet.json") as f:
         resnet_results = json.load(f)
@@ -62,7 +62,8 @@ def box_and_whiskers_test_set():
         if name == 'Min':
             save_dir = 'src/visualization'
             kwargs = {'average': 'micro'}
-            visualize.vis_box_and_whiskers_per_setting_score(resnet_results['labels'], fused_preds, resnet_results['metadata'], jaccard_score, save_dir, **kwargs)
+            # visualize.vis_box_and_whiskers_per_setting_score(resnet_results['labels'], fused_preds, resnet_results['metadata'], jaccard_score, save_dir, **kwargs)
+            visualize.vis_interaction_setting_distribution(resnet_results['labels'], resnet_results['metadata'], save_dir)
 
 
 def draw_timeline(preds12):
@@ -76,9 +77,13 @@ def draw_timeline(preds12):
 
     # Set up axes
     if len(preds12[0]) == 12:
-        ax.set_yticks(np.arange(12), ["parent head", "parent core", "parent larm", "parent rarm", "parent lleg", "parent rleg",
-                                      "infant head", "infant core", "infant larm", "infant rarm", "infant lleg", "infant rleg"])
+        # TODO: CORRECT THE INCORRECT ORDER!
+        # ax.set_yticks(np.arange(12), ["parent head", "parent core", "parent larm", "parent rarm", "parent lleg", "parent rleg",
+        #                               "infant head", "infant core", "infant larm", "infant rarm", "infant lleg", "infant rleg"])
+        ax.set_yticks(np.arange(12), ["parent head", "parent core", "parent rleg", "parent lleg","parent rarm", "parent larm",
+                                      "infant head", "infant core", "infant rleg", "infant lleg", "infant rarm", "infant larm"])
     else:
+        # TODO: CORRECT THE INCORRECT ORDER! legs come before arms in the predicted indices
         ax.set_yticks(np.arange(8), ["parent head", "parent core", "parent arms", "parent legs", "infant head", "infant core", "infant arms", "infant legs"])
     # ax.set_xticks(np.arange(len(preds_12)))
     ax.set_xlabel('Seconds')
