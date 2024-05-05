@@ -77,13 +77,12 @@ def draw_timeline(preds12):
 
     # Set up axes
     if len(preds12[0]) == 12:
-        # TODO: CORRECT THE INCORRECT ORDER!
         # ax.set_yticks(np.arange(12), ["parent head", "parent core", "parent larm", "parent rarm", "parent lleg", "parent rleg",
         #                               "infant head", "infant core", "infant larm", "infant rarm", "infant lleg", "infant rleg"])
         ax.set_yticks(np.arange(12), ["parent head", "parent core", "parent rleg", "parent lleg","parent rarm", "parent larm",
                                       "infant head", "infant core", "infant rleg", "infant lleg", "infant rarm", "infant larm"])
     else:
-        # TODO: CORRECT THE INCORRECT ORDER! legs come before arms in the predicted indices
+        # The order of legs and arms are corrected during combination process in combine_arms_legs function
         ax.set_yticks(np.arange(8), ["parent head", "parent core", "parent arms", "parent legs", "infant head", "infant core", "infant arms", "infant legs"])
     # ax.set_xticks(np.arange(len(preds_12)))
     ax.set_xlabel('Seconds')
@@ -132,9 +131,11 @@ def test_video(root_dir, threshold):
 
 def combine_arms_legs(preds):
     combined = []
+    # ["parent head", "parent core", "parent rleg", "parent lleg","parent rarm", "parent larm",
+    # "infant head", "infant core", "infant rleg", "infant lleg", "infant rarm", "infant larm"]
     for pred12 in preds:
-        combined.append([pred12[0], pred12[1], (pred12[2] | pred12[3]), (pred12[4] | pred12[5]),
-                         pred12[6], pred12[7], (pred12[8] | pred12[9]), (pred12[10] | pred12[11])])
+        combined.append([pred12[0], pred12[1], (pred12[4] | pred12[5]), (pred12[2] | pred12[3]),
+                         pred12[6], pred12[7], (pred12[10] | pred12[11]), (pred12[8] | pred12[9])])
     return combined
 
 
@@ -148,8 +149,8 @@ def gen_teaser_image():
 
 
 def main():
-    box_and_whiskers_test_set()
-    # gen_teaser_image()
+    # box_and_whiskers_test_set()
+    gen_teaser_image()
 
 
 if __name__ == '__main__':
