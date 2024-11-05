@@ -17,7 +17,7 @@ def evaluate(gts, preds, title, print_keys=False):
             print(f"{key}", end='\t&\t' if k < len(all_keys) - 1 else '\t\\\\\n')
     print(title, end='\t&\t')
     for k, key in enumerate(all_keys):
-        print(f"{jaccard_score(gts[key], preds[key], average='micro'):.3f}", end='\t&\t' if k < len(all_keys) - 1 else '\t\\\\')
+        print(f"{jaccard_score(gts[key], preds[key], average='micro'):.4f}", end='\t&\t' if k < len(all_keys) - 1 else '\t\\\\')
     print()
 
 
@@ -149,8 +149,8 @@ def gen_teaser_image():
 
 
 def main():
-    # box_and_whiskers_test_set()
-    gen_teaser_image()
+    box_and_whiskers_test_set()
+    # gen_teaser_image()
 
 
 if __name__ == '__main__':

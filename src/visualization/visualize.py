@@ -224,7 +224,7 @@ def vis_box_and_whiskers_per_setting_score(gts, preds, all_meta, eval_func, save
                     label_scores[label].append(cur_score)
         plt.boxplot([label_scores[label] for label in label_scores], labels=[all_labels[label] for label in label_scores])
         plt.grid()
-        plt.title(f"{key} - Jaccard Scores Per Interaction Setting")
+        # plt.title(f"{key} - Jaccard Scores Per Interaction Setting")
         plt.savefig(os.path.join(save_dir, f'per_setting_score_{label}_{key}.png'))
         plt.show()
         plt.close(fig)
@@ -243,13 +243,20 @@ def vis_interaction_setting_distribution(gts, all_meta, save_dir):
     save_dir = os.path.join(save_dir, "interaction_settings")
     os.makedirs(save_dir, exist_ok=True)
     for key in ["12"]:
-        label_scores = {label: [] for label in all_labels}
         label_distribution = {label: np.zeros(eval(key.replace('x', '*'))) for label in all_labels}
         for label in all_labels:
+            label_counts = {label: 0 for label in all_labels}
+            label_counts['other'] = 0
             for sample_gt, meta in zip(gts[key], all_meta):
                 subj, frame = meta[0][0], meta[1][0]
                 if setting_annotations[(subj, frame)] == label:
                     label_distribution[label] += sample_gt
+
+                if setting_annotations[(subj, frame)] in all_labels:
+                    label_counts[setting_annotations[(subj, frame)]] += 1
+                else:
+                    label_counts['other'] += 1
+            print(label_counts)
 
         theta = radar_factory(eval(key.replace('x', '*'))//2, frame='polygon')
         fig, axs = plt.subplots(figsize=(14, 4), nrows=1, ncols=3,
@@ -259,7 +266,9 @@ def vis_interaction_setting_distribution(gts, all_meta, save_dir):
         colors = ['b', 'r']
         # Plot the four cases from the example data on separate axes
         for ax, label in zip(axs.flat, all_labels):
-            ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+            ax.set_rgrids([0])
+            # ax.set_rgrids([0.2, 0.4, 0.6, 0.8])
+            # ax.tick_params(axis='y', bottom=False, top=False, labelbottom=False)
             ax.set_title(all_labels[label], weight='bold', size='medium', position=(0.5, 1.1),
                          horizontalalignment='center', verticalalignment='center')
             ax.plot(theta, label_distribution[label][[0, 5, 3, 1, 2, 4]], color=colors[0])
@@ -273,7 +282,7 @@ def vis_interaction_setting_distribution(gts, all_meta, save_dir):
 
         # add legend relative to top-left plot
         labels = ('Parent', 'Infant')
-        legend = axs[0].legend(labels, loc=(0.9, .95), labelspacing=0.1, fontsize='small')
+        legend = axs[2].legend(labels, loc=(0.75, .95), labelspacing=0.1, fontsize='large')
 
         plt.show()
 
