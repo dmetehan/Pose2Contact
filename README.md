@@ -6,6 +6,8 @@ Our better performing multimodal approach can be reached via [Image2Contact](htt
 
 To annotate your own data with contact signatures you can use our annotation tool [HumanContactAnnotator](https://github.com/dmetehan/HumanContactAnnotator)
 
+Download the annotated data and extract it in the repository: https://drive.google.com/file/d/1Q6Y_Izb5IBSU7MTjkGIjkSyaRXyV3QXa/view?usp=drive_link
+
 ## TODO:
 
 - [ ] Uploading Model Weights
